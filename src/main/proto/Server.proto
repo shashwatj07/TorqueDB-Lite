@@ -1,0 +1,146 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.dreamlab.edgefs.grpcServices";
+package com.dreamlab.grpc;
+
+service ParentServer {
+  // ParentFogServer
+  rpc putBlock(PutBlockRequest) returns (Response);
+
+  rpc putMetadata(PutMetadataRequest) returns (Response);
+
+  rpc sendHeartbeat(Heartbeat) returns (Response);
+}
+
+service DataStoreServer {
+  // DataStoreFog
+  rpc indexMetadata (IndexMetadataRequest) returns (Response);
+
+  rpc storeBlock (PutBlockRequest) returns (Response);
+}
+
+service DataQueryServer {
+  // DataQueryServer
+  rpc findBlocks(FindBlockRequest) returns (FindBlockResponse);
+
+  rpc execTSDBQuery (TSDBQueryRequest) returns (TSDBQueryResponse);
+
+  rpc getBlockContent (UUIDMessage) returns (BlockContentResponse);
+}
+
+service MembershipServer {
+  // MembershipServer
+  rpc sendMembershipInfo(MembershipRequest) returns (Response);
+
+  rpc getParentFog(GetParentFogRequest) returns (GetParentFogResponse);
+}
+
+message Point {
+  float latitude = 1;
+  float longitude = 2;
+}
+
+message PutBlockRequest {
+  UUIDMessage blockId = 1;
+  bytes blockContent = 2;
+}
+
+message BlockContentResponse {
+  UUIDMessage blockId = 1;
+  bytes blockContent = 2;
+}
+
+message Response {
+  bool isSuccess = 1;
+}
+
+message PutMetadataRequest {
+  UUIDMessage blockId = 1;
+  bytes metadataContent = 2;
+}
+
+message IndexMetadataRequest {
+  UUIDMessage blockId = 1;
+  map<string, string> metadataMap = 2;
+  optional BoundingBox boundingBox = 3;
+  optional TimeRange timeRange = 4;
+  repeated BlockReplica replicas = 5;
+}
+
+message BoundingBox {
+  Point topLeftLatLon = 1;
+  Point bottomRightLatLon = 2;
+}
+
+message TimeRange {
+  google.protobuf.Timestamp startTimestamp = 1;
+  google.protobuf.Timestamp endTimestamp = 2;
+}
+
+message FindBlockRequest {
+  optional UUIDMessage blockId = 1;
+  map<string, string> metadataMap = 2;
+  optional BoundingBox boundingBox = 3;
+  optional TimeRange timeRange = 4;
+
+  optional bool returnBlockReplicas = 5;
+  optional bool returnMetadata = 6;
+}
+
+message FindBlockResponse {
+  repeated BlockIdReplicaMetadata blockIdReplicasMetadata = 1;
+}
+
+message BlockReplicas {
+  UUIDMessage blockId = 1;
+  repeated BlockReplica replicas = 2;
+}
+
+message BlockIdReplicaMetadata {
+  UUIDMessage blockId = 1;
+  repeated BlockReplica replicas = 2;
+  map<string, string> metadataMap = 3;
+}
+
+message BlockReplica {
+  UUIDMessage deviceId = 1;
+  bytes ip = 2;
+  int32 port = 3;
+  int32 deviceType = 4;
+}
+
+message TSDBQueryRequest {
+  string fluxQuery = 1;
+}
+
+message TSDBQueryResponse {
+  bytes fluxQueryResponse = 1;
+}
+
+message UUIDMessage {
+  int64 lsb = 1;
+  int64 msb = 2;
+}
+
+message Heartbeat {
+  UUIDMessage edgeId = 1;
+}
+
+message MembershipRequest {
+  UUIDMessage edgeId = 1;
+  UUIDMessage fogId = 2;
+  google.protobuf.Timestamp heartbeatTimestamp = 3;
+}
+
+message GetParentFogRequest {
+  UUIDMessage edgeId = 1;
+}
+
+message GetParentFogResponse {
+  UUIDMessage fogId = 1;
+  bytes ip = 2;
+  int32 port = 3;
+}

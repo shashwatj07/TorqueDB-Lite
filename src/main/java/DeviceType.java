@@ -1,0 +1,4 @@
+enum DeviceType {
+    FOG,
+    EDGE
+}
