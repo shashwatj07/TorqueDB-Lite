@@ -5,7 +5,7 @@ public class FogPartition extends FogInfo {
     private Polygon polygon;
 
     public FogPartition(FogInfo fogInfo, Polygon polygon) {
-        super(fogInfo.getDeviceId(), fogInfo.getDeviceIP(), fogInfo.getDevicePort(), fogInfo.getLatitude(), fogInfo.getLongitude());
+        super(fogInfo.getDeviceId(), fogInfo.getDeviceIP(), fogInfo.getDevicePort(), fogInfo.getLatitude(), fogInfo.getLongitude(), fogInfo.getToken());
         this.polygon = polygon;
     }
 

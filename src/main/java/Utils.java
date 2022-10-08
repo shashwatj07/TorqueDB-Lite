@@ -5,21 +5,40 @@ import com.google.common.geometry.S2CellId;
 import com.google.common.geometry.S2LatLng;
 import com.google.common.geometry.S2LatLngRect;
 import com.google.common.geometry.S2RegionCoverer;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.Timestamp;
 
+import java.awt.geom.Point2D;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.util.GeometricShapeFactory;
 
 public final class Utils {
 
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final int S2_CELL_LEVEL = 22;
+    private static final String DATE_TIME_PATTERN = "uuuu-MM-dd HH-mm-ss";
+    private static final String ZONE_ID = "Asia/Kolkata";
 
     private Utils() {
     }
@@ -44,7 +63,7 @@ public final class Utils {
             deviceType = DeviceType.EDGE;
         }
         return new DeviceInfo(getUuidFromMessage(blockReplica.getDeviceId()),
-                blockReplica.getIp(), blockReplica.getPort(), deviceType);
+                ByteBuffer.wrap(blockReplica.getIp().toByteArray()), blockReplica.getPort(), deviceType);
     }
 
     public static BlockReplica getMessageFromReplica(DeviceInfo replicaLocation) {
@@ -57,7 +76,7 @@ public final class Utils {
         return BlockReplica
                 .newBuilder()
                 .setDeviceId(getMessageFromUUID(replicaLocation.getDeviceId()))
-                .setIp(replicaLocation.getDeviceIP())
+                .setIp(ByteString.copyFrom(replicaLocation.getDeviceIP().array()))
                 .setPort(replicaLocation.getDevicePort())
                 .setDeviceType(deviceType)
                 .build();
@@ -70,25 +89,41 @@ public final class Utils {
     public static Iterable<S2CellId> getCellIds(double minLat, double minLon, double maxLat, double maxLon) {
         S2LatLngRect s2LatLngRect = toS2Rectangle(minLat, minLon, maxLat, maxLon);
         S2RegionCoverer s2RegionCoverer = S2RegionCoverer.builder()
-                .setMaxLevel(22)
-                .setMinLevel(22)
+                .setMaxLevel(S2_CELL_LEVEL)
+                .setMinLevel(S2_CELL_LEVEL)
                 .setMaxCells(Integer.MAX_VALUE)
                 .build();
         return s2RegionCoverer.getCovering(s2LatLngRect).cellIds();
     }
 
     public static List<Instant> getTimeChunks(TimeRange timeRange, int chunkSizeInMinutes) {
-        Instant startInstant = Instant
-                .ofEpochSecond(timeRange.getStartTimestamp().getSeconds(), timeRange.getStartTimestamp().getNanos())
-                .atZone(ZoneId.of("Asia/Kolkata")).toInstant();
-        Instant endInstant = Instant
-                .ofEpochSecond(timeRange.getEndTimestamp().getSeconds(), timeRange.getEndTimestamp().getNanos())
-                .atZone(ZoneId.of("Asia/Kolkata")).toInstant();
+        Instant startInstant = getInstantFromTimestampMessage(timeRange.getStartTimestamp());
+        Instant endInstant = getInstantFromTimestampMessage(timeRange.getEndTimestamp());
         List<Instant> timeChunks = new ArrayList<>();
         for (Instant instant = startInstant; instant.isBefore(endInstant); instant = instant.plus(chunkSizeInMinutes, ChronoUnit.MINUTES)) {
             timeChunks.add(instant);
         }
         return timeChunks;
+    }
+
+    public static Instant getInstantFromTimestampMessage(Timestamp timestamp) {
+        return Instant
+                .ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos())
+                .atZone(ZoneId.of(ZONE_ID)).toInstant();
+    }
+
+    public static Timestamp getTimestampMessageFromInstant(Instant instant) {
+        return Timestamp
+                .newBuilder()
+                .setSeconds(instant.getEpochSecond())
+                .setNanos(instant.getNano())
+                .build();
+    }
+
+    public static Instant getInstantFromString(String timestamp) {
+        return LocalDateTime.parse(timestamp,
+            DateTimeFormatter.ofPattern( DATE_TIME_PATTERN, Locale.US)
+        ).atZone(ZoneId.of(ZONE_ID)).toInstant();
     }
 
     public static Coordinate getCoordinateFromFogInfo(FogInfo fogInfo) {
@@ -99,7 +134,57 @@ public final class Utils {
         return new FogPartition(fogInfo, polygon);
     }
 
+    public static Map<UUID, FogInfo> readFogDetails(String fogsConfigFilePath) throws IOException {
+        Map<UUID, FogInfo> fogDetails = new HashMap<>();
+        JSONArray jsonArray = new JSONArray(Files.readString(Paths.get(fogsConfigFilePath)));
+        for(Object obj : jsonArray) {
+            JSONObject jsonObject = (JSONObject) obj;
+            UUID fogId = UUID.fromString((String) jsonObject.get("id"));
+            FogInfo fogInfo = new FogInfo(
+                    fogId,
+                    ByteBuffer.wrap(((String) jsonObject.get("ip")).getBytes(StandardCharsets.UTF_8)),
+                    (Integer) jsonObject.get("port"),
+                    Double.parseDouble((String) jsonObject.get("latitude")),
+                    Double.parseDouble((String) jsonObject.get("longitude")),
+                    (String) jsonObject.get("token")
+            );
+            fogDetails.put(fogId, fogInfo);
+        }
+        return fogDetails;
+    }
+
+    public static List<Integer> getMembershipFogIndices(UUID edgeId) {
+        // TODO
+        List<Integer> membershipFogIndices = new ArrayList<>();
+        membershipFogIndices.add(0);
+        membershipFogIndices.add(1);
+        membershipFogIndices.add(2);
+        return membershipFogIndices;
+    }
+
+    public static FogInfo getParentFog(Map<UUID, FogInfo> fogDetails, double latitude, double longitude) {
+        double minDistance = Double.POSITIVE_INFINITY;
+        FogInfo nearestFog = null;
+        for (Map.Entry<UUID, FogInfo> entry : fogDetails.entrySet()) {
+            double fogDistance = Point2D.distance(longitude, latitude, entry.getValue().getLongitude(), entry.getValue().getLatitude());
+            if (fogDistance < minDistance) {
+                nearestFog = entry.getValue();
+                minDistance = fogDistance;
+            }
+        }
+        return nearestFog;
+    }
+
     public static <T> T getRandomElement(List<T> list) {
         return list.get(RANDOM.nextInt(list.size()));
+    }
+
+    public static Polygon createPolygon(double minLat, double maxLat, double minLon, double maxLon){
+        GeometricShapeFactory shapeFactory = new GeometricShapeFactory();
+        shapeFactory.setNumPoints(4);
+        shapeFactory.setCentre(new Coordinate((minLon + maxLon) / 2, (minLat + maxLat) / 2));
+        shapeFactory.setWidth(maxLon - minLon);
+        shapeFactory.setHeight(maxLat - minLat);
+        return shapeFactory.createRectangle();
     }
 }

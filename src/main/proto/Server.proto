@@ -7,43 +7,59 @@ option java_package = "com.dreamlab.edgefs.grpcServices";
 package com.dreamlab.grpc;
 
 service ParentServer {
-  // ParentFogServer
+
   rpc putBlock(PutBlockRequest) returns (Response);
 
   rpc putMetadata(PutMetadataRequest) returns (Response);
 
-  rpc sendHeartbeat(Heartbeat) returns (Response);
+  rpc sendHeartbeat(HeartbeatRequest) returns (Response);
+
 }
 
 service DataStoreServer {
-  // DataStoreFog
+
   rpc indexMetadata (IndexMetadataRequest) returns (Response);
 
-  rpc storeBlock (PutBlockRequest) returns (Response);
+  rpc storeBlock (StoreBlockRequest) returns (Response);
+
 }
 
 service DataQueryServer {
-  // DataQueryServer
+
   rpc findBlocks(FindBlockRequest) returns (FindBlockResponse);
 
   rpc execTSDBQuery (TSDBQueryRequest) returns (TSDBQueryResponse);
 
   rpc getBlockContent (UUIDMessage) returns (BlockContentResponse);
+
 }
 
 service MembershipServer {
-  // MembershipServer
-  rpc sendMembershipInfo(MembershipRequest) returns (Response);
+
+  rpc setParentFog(SetParentFogRequest) returns (Response);
 
   rpc getParentFog(GetParentFogRequest) returns (GetParentFogResponse);
+
+}
+
+service EdgeServer {
+
+  rpc putBlockAndMetadata(PutBlockAndMetadataRequest) returns (BlockIdResponse);
+
 }
 
 message Point {
-  float latitude = 1;
-  float longitude = 2;
+  double latitude = 1;
+  double longitude = 2;
 }
 
 message PutBlockRequest {
+  UUIDMessage blockId = 1;
+  bytes blockContent = 2;
+  bytes metadataContent = 3;
+}
+
+message StoreBlockRequest {
   UUIDMessage blockId = 1;
   bytes blockContent = 2;
 }
@@ -125,14 +141,26 @@ message UUIDMessage {
   int64 msb = 2;
 }
 
-message Heartbeat {
-  UUIDMessage edgeId = 1;
+message BlockIdResponse {
+  UUIDMessage blockId = 1;
+  bool isSuccess = 2;
 }
 
-message MembershipRequest {
+message PutBlockAndMetadataRequest {
+  bytes blockContent = 1;
+  bytes metadataContent = 2;
+}
+
+message HeartbeatRequest {
+  UUIDMessage edgeId = 1;
+  int32 ttlSecs = 2;
+}
+
+message SetParentFogRequest {
   UUIDMessage edgeId = 1;
   UUIDMessage fogId = 2;
   google.protobuf.Timestamp heartbeatTimestamp = 3;
+  int32 ttlSecs = 4;
 }
 
 message GetParentFogRequest {
@@ -140,7 +168,10 @@ message GetParentFogRequest {
 }
 
 message GetParentFogResponse {
-  UUIDMessage fogId = 1;
-  bytes ip = 2;
-  int32 port = 3;
+  bool isSuccess = 6;
+  optional UUIDMessage parentFogId = 1;
+  optional bytes ip = 2;
+  optional int32 port = 3;
+  optional google.protobuf.Timestamp heartbeatTimestamp = 4;
+  optional int32 ttlSecs = 5;
 }

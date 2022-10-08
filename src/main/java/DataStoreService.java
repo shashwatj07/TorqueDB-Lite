@@ -1,8 +1,8 @@
 import com.dreamlab.edgefs.grpcServices.BoundingBox;
 import com.dreamlab.edgefs.grpcServices.DataStoreServerGrpc;
 import com.dreamlab.edgefs.grpcServices.IndexMetadataRequest;
-import com.dreamlab.edgefs.grpcServices.PutBlockRequest;
 import com.dreamlab.edgefs.grpcServices.Response;
+import com.dreamlab.edgefs.grpcServices.StoreBlockRequest;
 import com.dreamlab.edgefs.grpcServices.TimeRange;
 import com.google.common.geometry.S2CellId;
 import io.grpc.stub.StreamObserver;
@@ -77,7 +77,7 @@ public class DataStoreService extends DataStoreServerGrpc.DataStoreServerImplBas
     }
 
     @Override
-    public void storeBlock(PutBlockRequest request, StreamObserver<Response> responseObserver) {
+    public void storeBlock(StoreBlockRequest request, StreamObserver<Response> responseObserver) {
         Response.Builder responseBuilder = Response.newBuilder();
         File contentsFile = new File(String.format("store/%s.bin", request.getBlockId()));
         try (PrintWriter contentsFileWriter = new PrintWriter(contentsFile, StandardCharsets.UTF_8)) {
