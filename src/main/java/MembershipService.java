@@ -5,39 +5,31 @@ import com.dreamlab.edgefs.grpcServices.Response;
 import com.dreamlab.edgefs.grpcServices.SetParentFogRequest;
 import io.grpc.stub.StreamObserver;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
 public class MembershipService extends MembershipServerGrpc.MembershipServerImplBase {
-
-    private static final String FOGS_JSON = "src/main/resources/fogs.json";
-
-    private final Map<UUID, FogInfo> fogDetails;
 
     private final Map<UUID, MembershipInfo> membershipMap;
 
-    public MembershipService() throws IOException {
-        membershipMap = new HashMap<>();
-        fogDetails = new HashMap<>();
+    private final Map<UUID, FogInfo> fogDetails;
 
+    public MembershipService(Map<UUID, FogInfo> fogDetails) {
+        membershipMap = new HashMap<>();
+        this.fogDetails = fogDetails;
     }
 
     @Override
     public void setParentFog(SetParentFogRequest request, StreamObserver<Response> responseObserver) {
         Response.Builder responseBuilder = Response.newBuilder();
-        if (membershipMap.containsKey(Utils.getUuidFromMessage(request.getEdgeId()))
-                && membershipMap.get(Utils.getUuidFromMessage(request.getEdgeId())).getLastHeartbeat().isAfter(Utils.getInstantFromTimestampMessage(request.getHeartbeatTimestamp()))) {
+        UUID edgeId = Utils.getUuidFromMessage(request.getEdgeId());
+        UUID parentFogId = Utils.getUuidFromMessage(request.getFogId());
+        if (!membershipMap.containsKey(edgeId)
+                || membershipMap.get(edgeId).getLastHeartbeat().isAfter(Utils.getInstantFromTimestampMessage(request.getHeartbeatTimestamp()))) {
             membershipMap.put(Utils.getUuidFromMessage(request.getEdgeId()),
-                    new MembershipInfo(Utils.getUuidFromMessage(request.getFogId()),
+                    new MembershipInfo(parentFogId,
                             Utils.getInstantFromTimestampMessage(request.getHeartbeatTimestamp()),
                             request.getTtlSecs()));
         }
@@ -50,10 +42,16 @@ public class MembershipService extends MembershipServerGrpc.MembershipServerImpl
     public void getParentFog(GetParentFogRequest request, StreamObserver<GetParentFogResponse> responseObserver) {
         GetParentFogResponse.Builder responseBuilder = GetParentFogResponse.newBuilder();
         try {
-           MembershipInfo membershipInfo = membershipMap.get(Utils.getUuidFromMessage(request.getEdgeId()));
-           responseBuilder.setIsSuccess(true)
-                   .setParentFogId(Utils.getMessageFromUUID(membershipInfo.getParentFogId()))
-                   .setTtlSecs(membershipInfo.getTtlSecs());
+            MembershipInfo membershipInfo = membershipMap.get(Utils.getUuidFromMessage(request.getEdgeId()));
+            UUID parentFogId = membershipInfo.getParentFogId();
+            FogInfo parentFogInfo = fogDetails.get(parentFogId);
+            responseBuilder
+                   .setIsSuccess(true)
+                   .setParentFogId(Utils.getMessageFromUUID(parentFogId))
+                   .setTtlSecs(membershipInfo.getTtlSecs())
+                   .setHeartbeatTimestamp(Utils.getTimestampMessageFromInstant(membershipInfo.getLastHeartbeat()))
+                   .setIp(parentFogInfo.getDeviceIP())
+                   .setPort(parentFogInfo.getDevicePort());
         } catch (Exception ex) {
             responseBuilder.setIsSuccess(false);
         }

@@ -18,6 +18,7 @@ import io.grpc.stub.StreamObserver;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import org.json.JSONObject;
@@ -38,7 +40,9 @@ import org.locationtech.jts.triangulate.VoronoiDiagramBuilder;
 
 public class ParentService extends ParentServerGrpc.ParentServerImplBase {
 
-    private static final int TIME_CHUNK = 60 * 24;
+    private static final Logger LOGGER = Logger.getLogger(ParentService.class.getName());
+
+    private static final int TIME_CHUNK = 60;
 
     private static final String KEY_START_TIMESTAMP = "startTS";
     private static final String KEY_END_TIMESTAMP = "endTS";
@@ -54,7 +58,7 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
 
     public ParentService(UUID fogId, Map<UUID, FogInfo> fogDetails) {
         this.fogId = fogId;
-        fogPartitions = generateFogPartitions((List<FogInfo>) fogDetails.values());
+        fogPartitions = generateFogPartitions(new ArrayList<>(fogDetails.values()));
         numFogs = fogDetails.size();
         fogIds = new ArrayList<>(fogDetails.keySet());
         Collections.sort(fogIds);
@@ -79,13 +83,12 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
     }
 
     private List<Polygon> generateVoronoiPolygons(List<FogInfo> fogDevices) {
-        GeometryFactory geometryFactory = new GeometryFactory();
-
+        final Polygon region = Utils.createPolygon(-90, 90, -180, 180);
         List<Coordinate> coordinates = fogDevices.stream().map(Utils::getCoordinateFromFogInfo).collect(Collectors.toList());
-
         VoronoiDiagramBuilder diagramBuilder = new VoronoiDiagramBuilder();
         diagramBuilder.setSites(coordinates);
-        Geometry polygonCollection = diagramBuilder.getDiagram(geometryFactory);
+        diagramBuilder.setClipEnvelope(region.getEnvelopeInternal());
+        Geometry polygonCollection = diagramBuilder.getDiagram(region.getFactory());
 
         List<Polygon> voronoiPolygons = new ArrayList<>();
 
@@ -105,7 +108,7 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
 
     private List<UUID> getTemporalShortlist(TimeRange timeRange) {
         List<Instant> timeChunks = Utils.getTimeChunks(timeRange, TIME_CHUNK);
-        return timeChunks.stream().map(chunk -> fogIds.get(chunk.hashCode() % numFogs)).collect(Collectors.toList());
+        return timeChunks.stream().map(chunk -> fogIds.get(Math.abs(chunk.hashCode() % numFogs))).collect(Collectors.toList());
     }
 
     private List<UUID> getFogsToReplicate(List<UUID> spatialShortlist, List<UUID> temporalShortlist, UUID randomReplica) {
@@ -116,11 +119,12 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
     }
 
     private UUID getRandomFogToReplicate(UUID blockId) {
-        return fogIds.get(blockId.hashCode() % numFogs);
+        return fogIds.get(Math.abs(blockId.hashCode() % numFogs));
     }
 
     @Override
     public void putBlock(PutBlockRequest request, StreamObserver<Response> responseObserver) {
+
         final StoreBlockRequest.Builder storeBlockRequestBuilder = StoreBlockRequest.newBuilder();
         final TimeRange.Builder timeRangeBuilder = TimeRange.newBuilder();
         final BoundingBox.Builder boundingBoxBuilder = BoundingBox.newBuilder();
@@ -152,6 +156,7 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
             e.printStackTrace();
         }
         storeBlockRequestBuilder.setBlockId(request.getBlockId());
+        storeBlockRequestBuilder.setBlockContent(request.getBlockContent());
         TimeRange timeRange = timeRangeBuilder.build();
         BoundingBox boundingBox = boundingBoxBuilder.build();
         List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
@@ -160,6 +165,9 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
         List<UUID> blockReplicaFogIds = getFogsToReplicate(spatialShortlist, temporalShortlist, randomReplica);
         StoreBlockRequest storeBlockRequest = storeBlockRequestBuilder.build();
         blockReplicaFogIds.forEach(replicaFogId -> sendBlockToDataStoreFog(replicaFogId, storeBlockRequest));
+        Response response = Response.newBuilder().setIsSuccess(true).build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
     }
 
     @Override
@@ -221,10 +229,14 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
         metadataReplicaFogIds.add(randomReplica);
         IndexMetadataRequest indexMetadataRequest = indexMetadataRequestBuilder.build();
         metadataReplicaFogIds.forEach(replicaFogId -> sendMetadataToDataStoreFog(replicaFogId, indexMetadataRequest));
+        Response response = Response.newBuilder().setIsSuccess(true).build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
     }
 
     @Override
     public void sendHeartbeat(HeartbeatRequest request, StreamObserver<Response> responseObserver) {
+        LOGGER.info("Heartbeat Received From: " + Utils.getUuidFromMessage(request.getEdgeId()));
         SetParentFogRequest.Builder builder = SetParentFogRequest.newBuilder();
         SetParentFogRequest setParentFogRequest = builder
                 .setEdgeId(request.getEdgeId())
@@ -247,6 +259,7 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
                 .build();
         MembershipServerGrpc.MembershipServerBlockingStub membershipServerBlockingStub = MembershipServerGrpc.newBlockingStub(managedChannel);
         Response response = membershipServerBlockingStub.setParentFog(setParentFogRequest);
+        managedChannel.shutdown();
     }
 
     private void sendMetadataToDataStoreFog(UUID dataStoreFogId, IndexMetadataRequest indexMetadataRequest) {
@@ -257,16 +270,18 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
                 .build();
         DataStoreServerGrpc.DataStoreServerBlockingStub dataStoreServerBlockingStub = DataStoreServerGrpc.newBlockingStub(managedChannel);
         Response response = dataStoreServerBlockingStub.indexMetadata(indexMetadataRequest);
+        managedChannel.shutdown();
     }
 
     private void sendBlockToDataStoreFog(UUID dataStoreFogId, StoreBlockRequest storeBlockRequest) {
         FogPartition membershipFogInfo = fogPartitions.get(dataStoreFogId);
         ManagedChannel managedChannel = ManagedChannelBuilder
-                .forAddress(String.valueOf(membershipFogInfo.getDeviceIP()), membershipFogInfo.getDevicePort())
+                .forAddress(membershipFogInfo.getDeviceIP(), membershipFogInfo.getDevicePort())
                 .usePlaintext()
                 .build();
         DataStoreServerGrpc.DataStoreServerBlockingStub dataStoreServerBlockingStub = DataStoreServerGrpc.newBlockingStub(managedChannel);
         Response response = dataStoreServerBlockingStub.storeBlock(storeBlockRequest);
+        managedChannel.shutdown();
     }
 
 }

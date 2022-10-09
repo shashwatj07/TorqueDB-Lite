@@ -1,16 +1,14 @@
-import com.google.protobuf.ByteString;
-
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.UUID;
 
 class DeviceInfo {
     private final UUID deviceId;
-    private final ByteBuffer deviceIP;
+    private final String deviceIP;
     private final int devicePort;
     private final DeviceType deviceType;
 
-    public DeviceInfo(UUID deviceId, ByteBuffer deviceIP, int devicePort, DeviceType deviceType) {
+    public DeviceInfo(UUID deviceId, String deviceIP, int devicePort, DeviceType deviceType) {
         this.deviceId = deviceId;
         this.deviceIP = deviceIP;
         this.devicePort = devicePort;
@@ -38,7 +36,7 @@ class DeviceInfo {
         return deviceId;
     }
 
-    public ByteBuffer getDeviceIP() {
+    public String getDeviceIP() {
         return deviceIP;
     }
 

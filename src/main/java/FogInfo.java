@@ -9,7 +9,7 @@ public class FogInfo extends DeviceInfo {
     private final double longitude;
     private final String token;
 
-    public FogInfo(UUID deviceId, ByteBuffer deviceIP, int devicePort, double latitude, double longitude, String token) {
+    public FogInfo(UUID deviceId, String deviceIP, int devicePort, double latitude, double longitude, String token) {
         super(deviceId, deviceIP, devicePort, DeviceType.FOG);
         this.latitude = latitude;
         this.longitude = longitude;

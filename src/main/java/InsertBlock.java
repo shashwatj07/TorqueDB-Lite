@@ -10,6 +10,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class InsertBlock {
+    private InsertBlock() {
+    }
+
     public static void main(String... args) throws IOException {
         final String edgeIp = args[0];
         final int edgePort = Integer.parseInt(args[1]);

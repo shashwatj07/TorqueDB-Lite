@@ -13,17 +13,21 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public class DataStoreService extends DataStoreServerGrpc.DataStoreServerImplBase {
-    private static final int TIME_CHUNK = 60 * 24;
+    private static final int TIME_CHUNK = 60;
     private final Map<String, Map<String, ArrayList<BlockReplicaInfo>>> metaMap;
     private final Map<Instant, ArrayList<BlockReplicaInfo>> timeMap;
     private final Map<S2CellId, ArrayList<BlockReplicaInfo>> geoMap;
+    private final UUID fogId;
 
-        public DataStoreService(String serverIP, int serverPort) {
+    public DataStoreService(String serverIP, int serverPort, UUID fogId) {
+        this.fogId = fogId;
         metaMap = new HashMap<>();
         metaMap.put("measurement", new HashMap<>());
         metaMap.put("city", new HashMap<>());
@@ -43,6 +47,7 @@ public class DataStoreService extends DataStoreServerGrpc.DataStoreServerImplBas
         metaMap.put("max_S2CellId", new HashMap<>());
         metaMap.put("mbId", new HashMap<>());
         metaMap.put("bucket", new HashMap<>());
+        metaMap.put("replica_fogs", new HashMap<>());
         timeMap = new HashMap<>();
         geoMap = new HashMap<>();
     }
@@ -61,8 +66,12 @@ public class DataStoreService extends DataStoreServerGrpc.DataStoreServerImplBas
             for (Map.Entry<String, String> entry : metadataMap.entrySet()) {
                 String key = entry.getKey();
                 String value = entry.getValue();
-                metaMap.get(key).getOrDefault(value,
-                        new ArrayList<>()).add(blockReplicaInfo);
+                if(!metaMap.get(key).containsKey(value)) {
+                    metaMap.get(key).put(value, new ArrayList<>(List.of(blockReplicaInfo)));
+                }
+                else {
+                    metaMap.get(key).get(value).add(blockReplicaInfo);
+                }
             }
             indexTimestamp(request.getTimeRange(), blockReplicaInfo);
             indexS2CellIds(request.getBoundingBox(), blockReplicaInfo);
@@ -79,9 +88,12 @@ public class DataStoreService extends DataStoreServerGrpc.DataStoreServerImplBas
     @Override
     public void storeBlock(StoreBlockRequest request, StreamObserver<Response> responseObserver) {
         Response.Builder responseBuilder = Response.newBuilder();
-        File contentsFile = new File(String.format("store/%s.bin", request.getBlockId()));
+        File fogStoreDir = new File(String.format("store/%s", fogId));
+        fogStoreDir.mkdirs();
+        File contentsFile = new File(String.format("store/%s/%s.bin", fogId, Utils.getUuidFromMessage(request.getBlockId())));
         try (PrintWriter contentsFileWriter = new PrintWriter(contentsFile, StandardCharsets.UTF_8)) {
             contentsFileWriter.println(request.getBlockContent().toStringUtf8());
+            contentsFileWriter.close();
             responseBuilder.setIsSuccess(true);
         } catch (IOException e) {
             e.printStackTrace();
@@ -93,7 +105,14 @@ public class DataStoreService extends DataStoreServerGrpc.DataStoreServerImplBas
 
     private void indexTimestamp(TimeRange timeRange, BlockReplicaInfo blockReplicaInfo) {
         Utils.getTimeChunks(timeRange, TIME_CHUNK)
-                .forEach(instant -> timeMap.getOrDefault(instant, new ArrayList<>()).add(blockReplicaInfo));
+                .forEach(instant -> {
+                    if (timeMap.containsKey(instant)) {
+                        timeMap.get(instant).add(blockReplicaInfo);
+                    }
+                    else {
+                        timeMap.put(instant, new ArrayList<>(Collections.singletonList(blockReplicaInfo)));
+                    }
+                });
     }
 
     private void indexS2CellIds(BoundingBox boundingBox, BlockReplicaInfo blockReplicaInfo) {
@@ -105,7 +124,12 @@ public class DataStoreService extends DataStoreServerGrpc.DataStoreServerImplBas
         Iterable<S2CellId> cellIds = Utils.getCellIds(minLat, minLon, maxLat, maxLon);
 
         for (S2CellId s2CellId : cellIds) {
-            geoMap.getOrDefault(s2CellId, new ArrayList<>()).add(blockReplicaInfo);
+            if (geoMap.containsKey(s2CellId)) {
+                geoMap.get(s2CellId).add(blockReplicaInfo);
+            }
+            else {
+                geoMap.put(s2CellId, new ArrayList<>(Collections.singletonList(blockReplicaInfo)));
+            }
         }
     }
 }

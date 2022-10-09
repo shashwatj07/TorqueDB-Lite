@@ -123,7 +123,7 @@ message BlockIdReplicaMetadata {
 
 message BlockReplica {
   UUIDMessage deviceId = 1;
-  bytes ip = 2;
+  string ip = 2;
   int32 port = 3;
   int32 deviceType = 4;
 }
@@ -170,7 +170,7 @@ message GetParentFogRequest {
 message GetParentFogResponse {
   bool isSuccess = 6;
   optional UUIDMessage parentFogId = 1;
-  optional bytes ip = 2;
+  optional string ip = 2;
   optional int32 port = 3;
   optional google.protobuf.Timestamp heartbeatTimestamp = 4;
   optional int32 ttlSecs = 5;

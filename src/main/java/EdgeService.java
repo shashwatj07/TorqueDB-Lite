@@ -11,14 +11,12 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 
 public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
 
-    private final ByteBuffer ip;
+    private final String ip;
 
     private final UUID id;
 
@@ -26,18 +24,19 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
 
     private final int heartbeatTtlSecs;
 
-    private Runnable heartbeatThread;
+    private final Thread heartbeatThread;
 
     private final Map<UUID, FogInfo> fogDetails;
 
     public EdgeService(UUID id, String ip, int port, int heartbeatTtlSecs, String fogsConfigFilePath) throws IOException {
         this.id  = id;
-        this.ip = ByteBuffer.wrap(ip.getBytes(StandardCharsets.UTF_8));
+        this.ip = ip;
         this.port = port;
         this.heartbeatTtlSecs = heartbeatTtlSecs;
         fogDetails = Utils.readFogDetails(fogsConfigFilePath);
-        heartbeatThread = new Heartbeat(id, ip, port, heartbeatTtlSecs);
-        heartbeatThread.run();
+        Runnable heartbeat = new Heartbeat(id, heartbeatTtlSecs, fogDetails);
+        heartbeatThread = new Thread(heartbeat);
+        heartbeatThread.start();
     }
 
     @Override
@@ -47,12 +46,14 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
         putBlockRequestBuilder.setBlockId(blockId);
         putBlockRequestBuilder.setBlockContent(request.getBlockContent());
         putBlockRequestBuilder.setMetadataContent(request.getMetadataContent());
+
         PutMetadataRequest.Builder putMetadataRequestBuilder = PutMetadataRequest.newBuilder();
         putMetadataRequestBuilder.setBlockId(blockId);
         putMetadataRequestBuilder.setMetadataContent(request.getMetadataContent());
-        final FogInfo parentFogInfo = Utils.getParentFog(fogDetails, 0, 0);
+
+        final FogInfo parentFogInfo = Utils.getParentFog(fogDetails, 1.5, 1.5);
         ManagedChannel managedChannel = ManagedChannelBuilder
-                .forAddress(String.valueOf(parentFogInfo.getDeviceIP()), parentFogInfo.getDevicePort())
+                .forAddress(parentFogInfo.getDeviceIP(), parentFogInfo.getDevicePort())
                 .usePlaintext()
                 .build();
         ParentServerGrpc.ParentServerBlockingStub parentServerBlockingStub = ParentServerGrpc.newBlockingStub(managedChannel);

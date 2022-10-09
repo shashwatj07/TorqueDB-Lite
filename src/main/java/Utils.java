@@ -5,13 +5,10 @@ import com.google.common.geometry.S2CellId;
 import com.google.common.geometry.S2LatLng;
 import com.google.common.geometry.S2LatLngRect;
 import com.google.common.geometry.S2RegionCoverer;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 
 import java.awt.geom.Point2D;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
@@ -63,7 +60,7 @@ public final class Utils {
             deviceType = DeviceType.EDGE;
         }
         return new DeviceInfo(getUuidFromMessage(blockReplica.getDeviceId()),
-                ByteBuffer.wrap(blockReplica.getIp().toByteArray()), blockReplica.getPort(), deviceType);
+                blockReplica.getIp(), blockReplica.getPort(), deviceType);
     }
 
     public static BlockReplica getMessageFromReplica(DeviceInfo replicaLocation) {
@@ -76,7 +73,7 @@ public final class Utils {
         return BlockReplica
                 .newBuilder()
                 .setDeviceId(getMessageFromUUID(replicaLocation.getDeviceId()))
-                .setIp(ByteString.copyFrom(replicaLocation.getDeviceIP().array()))
+                .setIp(replicaLocation.getDeviceIP())
                 .setPort(replicaLocation.getDevicePort())
                 .setDeviceType(deviceType)
                 .build();
@@ -142,7 +139,7 @@ public final class Utils {
             UUID fogId = UUID.fromString((String) jsonObject.get("id"));
             FogInfo fogInfo = new FogInfo(
                     fogId,
-                    ByteBuffer.wrap(((String) jsonObject.get("ip")).getBytes(StandardCharsets.UTF_8)),
+                    (String) jsonObject.get("ip"),
                     (Integer) jsonObject.get("port"),
                     Double.parseDouble((String) jsonObject.get("latitude")),
                     Double.parseDouble((String) jsonObject.get("longitude")),
