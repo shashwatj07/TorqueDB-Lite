@@ -8,7 +8,9 @@ package com.dreamlab.grpc;
 
 service ParentServer {
 
-  rpc putBlock(PutBlockRequest) returns (Response);
+  rpc putBlockAndMetadata(PutBlockRequest) returns (Response);
+
+  rpc putBlockWithMetadata(PutBlockRequest) returns (Response);
 
   rpc putMetadata(PutMetadataRequest) returns (Response);
 
@@ -31,6 +33,8 @@ service DataQueryServer {
   rpc execTSDBQuery (TSDBQueryRequest) returns (TSDBQueryResponse);
 
   rpc getBlockContent (UUIDMessage) returns (BlockContentResponse);
+
+  rpc execTSDBSubQuery (TSDBQueryRequest) returns (TSDBQueryResponse);
 
 }
 
