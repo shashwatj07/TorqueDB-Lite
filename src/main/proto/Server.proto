@@ -8,33 +8,37 @@ package com.dreamlab.grpc;
 
 service ParentServer {
 
-  rpc putBlockAndMetadata(PutBlockRequest) returns (Response);
-
-  rpc putBlockWithMetadata(PutBlockRequest) returns (Response);
-
-  rpc putMetadata(PutMetadataRequest) returns (Response);
-
   rpc sendHeartbeat(HeartbeatRequest) returns (Response);
 
 }
 
-service DataStoreServer {
+service DataServer {
 
-  rpc indexMetadata (IndexMetadataRequest) returns (Response);
+  rpc indexMetadataLocal (IndexMetadataRequest) returns (Response);
 
-  rpc storeBlock (StoreBlockRequest) returns (Response);
+  rpc storeBlockLocal (StoreBlockRequest) returns (Response);
+
+  rpc findBlocksLocal(FindBlocksRequest) returns (FindBlocksResponse);
+
+  rpc execTSDBQueryLocal (TSDBQueryRequest) returns (TSDBQueryResponse);
+
+  rpc getBlockContentLocal (UUIDMessage) returns (BlockContentResponse);
 
 }
 
-service DataQueryServer {
-
-  rpc findBlocks(FindBlockRequest) returns (FindBlockResponse);
+service CoordinatorServer {
 
   rpc execTSDBQuery (TSDBQueryRequest) returns (TSDBQueryResponse);
 
   rpc getBlockContent (UUIDMessage) returns (BlockContentResponse);
 
-  rpc execTSDBSubQuery (TSDBQueryRequest) returns (TSDBQueryResponse);
+  rpc putBlockAndMetadata(PutBlockRequest) returns (Response);
+
+  rpc putBlockByMetadata(PutBlockRequest) returns (Response);
+
+  rpc putMetadata(PutMetadataRequest) returns (Response);
+
+  rpc findBlocks(FindBlocksRequest) returns (FindBlocksResponse);
 
 }
 
@@ -100,17 +104,19 @@ message TimeRange {
   google.protobuf.Timestamp endTimestamp = 2;
 }
 
-message FindBlockRequest {
+message FindBlocksRequest {
   optional UUIDMessage blockId = 1;
   map<string, string> metadataMap = 2;
   optional BoundingBox boundingBox = 3;
   optional TimeRange timeRange = 4;
 
+  bool isOrQuery = 7;
+
   optional bool returnBlockReplicas = 5;
   optional bool returnMetadata = 6;
 }
 
-message FindBlockResponse {
+message FindBlocksResponse {
   repeated BlockIdReplicaMetadata blockIdReplicasMetadata = 1;
 }
 

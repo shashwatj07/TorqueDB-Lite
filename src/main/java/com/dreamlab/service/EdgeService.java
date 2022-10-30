@@ -1,11 +1,17 @@
+package com.dreamlab.service;
+
+import com.dreamlab.Heartbeat;
+import com.dreamlab.LocationHandler;
 import com.dreamlab.edgefs.grpcServices.BlockIdResponse;
+import com.dreamlab.edgefs.grpcServices.CoordinatorServerGrpc;
 import com.dreamlab.edgefs.grpcServices.EdgeServerGrpc;
-import com.dreamlab.edgefs.grpcServices.ParentServerGrpc;
 import com.dreamlab.edgefs.grpcServices.PutBlockAndMetadataRequest;
 import com.dreamlab.edgefs.grpcServices.PutBlockRequest;
 import com.dreamlab.edgefs.grpcServices.PutMetadataRequest;
 import com.dreamlab.edgefs.grpcServices.Response;
 import com.dreamlab.edgefs.grpcServices.UUIDMessage;
+import com.dreamlab.types.FogInfo;
+import com.dreamlab.utils.Utils;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -15,6 +21,10 @@ import java.util.Map;
 import java.util.UUID;
 
 public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
+
+    private volatile double latitude;
+
+    private volatile double longitude;
 
     private final String ip;
 
@@ -34,9 +44,12 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
         this.port = port;
         this.heartbeatTtlSecs = heartbeatTtlSecs;
         fogDetails = Utils.readFogDetails(fogsConfigFilePath);
-        Runnable heartbeat = new Heartbeat(id, heartbeatTtlSecs, fogDetails);
+        Runnable heartbeat = new Heartbeat(this, id, heartbeatTtlSecs, fogDetails);
         heartbeatThread = new Thread(heartbeat);
         heartbeatThread.start();
+        Runnable locationHandler = new LocationHandler(this, id, heartbeatTtlSecs);
+        Thread locationThread = new Thread(locationHandler);
+        locationThread.start();
     }
 
     @Override
@@ -56,14 +69,30 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
                 .forAddress(parentFogInfo.getDeviceIP(), parentFogInfo.getDevicePort())
                 .usePlaintext()
                 .build();
-        ParentServerGrpc.ParentServerBlockingStub parentServerBlockingStub = ParentServerGrpc.newBlockingStub(managedChannel);
-        Response putBlockResponse = parentServerBlockingStub.putBlock(putBlockRequestBuilder.build());
-        Response putMetadataResponse = parentServerBlockingStub.putMetadata(putMetadataRequestBuilder.build());
+        CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
+        Response putBlockResponse = coordinatorServerBlockingStub.putBlockByMetadata(putBlockRequestBuilder.build());
+        Response putMetadataResponse = coordinatorServerBlockingStub.putMetadata(putMetadataRequestBuilder.build());
         BlockIdResponse.Builder blockIdResponseBuilder = BlockIdResponse.newBuilder();
         blockIdResponseBuilder.setBlockId(blockId);
         blockIdResponseBuilder.setIsSuccess(putBlockResponse.getIsSuccess() && putMetadataResponse.getIsSuccess());
 
         responseObserver.onNext(blockIdResponseBuilder.build());
         responseObserver.onCompleted();
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
     }
 }

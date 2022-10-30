@@ -1,3 +1,5 @@
+package com.dreamlab.types;
+
 import java.time.Instant;
 import java.util.UUID;
 

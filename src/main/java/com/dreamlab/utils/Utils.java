@@ -1,17 +1,26 @@
+package com.dreamlab.utils;
+
+import com.dreamlab.types.DeviceInfo;
+import com.dreamlab.types.FogInfo;
+import com.dreamlab.types.FogPartition;
+import com.dreamlab.constants.Constants;
+import com.dreamlab.constants.DeviceType;
 import com.dreamlab.edgefs.grpcServices.BlockReplica;
+import com.dreamlab.edgefs.grpcServices.BoundingBox;
 import com.dreamlab.edgefs.grpcServices.TimeRange;
 import com.dreamlab.edgefs.grpcServices.UUIDMessage;
 import com.google.common.geometry.S2CellId;
 import com.google.common.geometry.S2LatLng;
 import com.google.common.geometry.S2LatLngRect;
 import com.google.common.geometry.S2RegionCoverer;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 
 import java.awt.geom.Point2D;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -31,11 +40,6 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.util.GeometricShapeFactory;
 
 public final class Utils {
-
-    private static final SecureRandom RANDOM = new SecureRandom();
-    private static final int S2_CELL_LEVEL = 22;
-    private static final String DATE_TIME_PATTERN = "uuuu-MM-dd HH-mm-ss";
-    private static final String ZONE_ID = "Asia/Kolkata";
 
     private Utils() {
     }
@@ -83,11 +87,16 @@ public final class Utils {
         return new S2LatLngRect(S2LatLng.fromDegrees(minLat, minLon), S2LatLng.fromDegrees(maxLat, maxLon));
     }
 
-    public static Iterable<S2CellId> getCellIds(double minLat, double minLon, double maxLat, double maxLon) {
+    public static List<S2CellId> getCellIds(BoundingBox boundingBox) {
+        return getCellIds(boundingBox.getBottomRightLatLon().getLatitude(), boundingBox.getTopLeftLatLon().getLongitude(),
+                boundingBox.getTopLeftLatLon().getLatitude(), boundingBox.getBottomRightLatLon().getLongitude());
+    }
+
+    public static List<S2CellId> getCellIds(double minLat, double minLon, double maxLat, double maxLon) {
         S2LatLngRect s2LatLngRect = toS2Rectangle(minLat, minLon, maxLat, maxLon);
         S2RegionCoverer s2RegionCoverer = S2RegionCoverer.builder()
-                .setMaxLevel(S2_CELL_LEVEL)
-                .setMinLevel(S2_CELL_LEVEL)
+                .setMaxLevel(Constants.S2_CELL_LEVEL)
+                .setMinLevel(Constants.S2_CELL_LEVEL)
                 .setMaxCells(Integer.MAX_VALUE)
                 .build();
         return s2RegionCoverer.getCovering(s2LatLngRect).cellIds();
@@ -106,7 +115,7 @@ public final class Utils {
     public static Instant getInstantFromTimestampMessage(Timestamp timestamp) {
         return Instant
                 .ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos())
-                .atZone(ZoneId.of(ZONE_ID)).toInstant();
+                .atZone(ZoneId.of(Constants.ZONE_ID)).toInstant();
     }
 
     public static Timestamp getTimestampMessageFromInstant(Instant instant) {
@@ -119,8 +128,8 @@ public final class Utils {
 
     public static Instant getInstantFromString(String timestamp) {
         return LocalDateTime.parse(timestamp,
-            DateTimeFormatter.ofPattern( DATE_TIME_PATTERN, Locale.US)
-        ).atZone(ZoneId.of(ZONE_ID)).toInstant();
+            DateTimeFormatter.ofPattern( Constants.DATE_TIME_PATTERN, Locale.US)
+        ).atZone(ZoneId.of(Constants.ZONE_ID)).toInstant();
     }
 
     public static Coordinate getCoordinateFromFogInfo(FogInfo fogInfo) {
@@ -173,7 +182,12 @@ public final class Utils {
     }
 
     public static <T> T getRandomElement(List<T> list) {
-        return list.get(RANDOM.nextInt(list.size()));
+        return list.get(Constants.RANDOM.nextInt(list.size()));
+    }
+
+    public static Polygon createPolygon(BoundingBox boundingBox) {
+        return createPolygon(boundingBox.getBottomRightLatLon().getLatitude(), boundingBox.getTopLeftLatLon().getLatitude(),
+                boundingBox.getTopLeftLatLon().getLongitude(), boundingBox.getBottomRightLatLon().getLatitude());
     }
 
     public static Polygon createPolygon(double minLat, double maxLat, double minLon, double maxLon){
@@ -183,5 +197,10 @@ public final class Utils {
         shapeFactory.setWidth(maxLon - minLon);
         shapeFactory.setHeight(maxLat - minLat);
         return shapeFactory.createRectangle();
+    }
+
+    public static ByteString getBytes(String first) throws IOException {
+        byte[] bytes = Files.readAllBytes(Path.of(first));
+        return ByteString.copyFrom(bytes);
     }
 }

@@ -1,3 +1,6 @@
+package com.dreamlab.server;
+
+import com.dreamlab.service.EdgeService;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 

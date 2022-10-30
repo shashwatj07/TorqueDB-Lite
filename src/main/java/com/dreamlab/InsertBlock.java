@@ -1,13 +1,15 @@
+package com.dreamlab;
+
 import com.dreamlab.edgefs.grpcServices.BlockIdResponse;
 import com.dreamlab.edgefs.grpcServices.EdgeServerGrpc;
 import com.dreamlab.edgefs.grpcServices.PutBlockAndMetadataRequest;
-import com.google.protobuf.ByteString;
+import com.dreamlab.utils.Utils;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+
+import static com.dreamlab.utils.Utils.getBytes;
 
 public final class InsertBlock {
     private InsertBlock() {
@@ -33,10 +35,5 @@ public final class InsertBlock {
                 .putBlockAndMetadata(putBlockAndMetadataRequest);
         managedChannel.shutdown();
         System.out.println("Success: " + Utils.getUuidFromMessage(blockIdResponse.getBlockId()));
-    }
-
-    private static ByteString getBytes(String first) throws IOException {
-        byte[] bytes = Files.readAllBytes(Path.of(first));
-        return ByteString.copyFrom(bytes);
     }
 }

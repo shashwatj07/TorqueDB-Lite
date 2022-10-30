@@ -1,6 +1,7 @@
-import com.google.protobuf.ByteString;
+package com.dreamlab.types;
 
-import java.nio.ByteBuffer;
+import com.dreamlab.constants.DeviceType;
+
 import java.util.UUID;
 
 public class FogInfo extends DeviceInfo {

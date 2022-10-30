@@ -1,8 +1,14 @@
-import java.nio.ByteBuffer;
+package com.dreamlab.types;
+
+import com.dreamlab.constants.DeviceType;
+import com.dreamlab.edgefs.grpcServices.BlockReplica;
+import com.dreamlab.utils.Utils;
+
 import java.util.Objects;
 import java.util.UUID;
 
-class DeviceInfo {
+public class DeviceInfo {
+
     private final UUID deviceId;
     private final String deviceIP;
     private final int devicePort;
@@ -13,6 +19,14 @@ class DeviceInfo {
         this.deviceIP = deviceIP;
         this.devicePort = devicePort;
         this.deviceType = deviceType;
+    }
+
+    public BlockReplica toMessage() {
+        return BlockReplica.newBuilder()
+                .setDeviceId(Utils.getMessageFromUUID(this.deviceId))
+                .setIp(this.deviceIP)
+                .setPort(this.devicePort)
+                .setDeviceType(this.deviceType.ordinal()).build();
     }
 
     @Override

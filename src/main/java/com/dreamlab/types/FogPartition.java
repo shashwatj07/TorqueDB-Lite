@@ -1,3 +1,5 @@
+package com.dreamlab.types;
+
 import org.locationtech.jts.geom.Polygon;
 
 public class FogPartition extends FogInfo {

@@ -1,3 +1,11 @@
+package com.dreamlab.server;
+
+import com.dreamlab.types.FogInfo;
+import com.dreamlab.service.CoordinatorService;
+import com.dreamlab.service.DataService;
+import com.dreamlab.service.MembershipService;
+import com.dreamlab.service.ParentService;
+import com.dreamlab.utils.Utils;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 
@@ -21,14 +29,15 @@ public class FogServer {
     private static void startFogServer(UUID fogId, Map<UUID, FogInfo> fogDetails) {
         new Thread(() -> {
             FogInfo fogInfo = fogDetails.get(fogId);
-            Server server = ServerBuilder
+            Server server = null;
+            try {
+                server = ServerBuilder
                     .forPort(fogInfo.getDevicePort())
                     .addService(new ParentService(fogInfo.getDeviceId(), fogDetails))
                     .addService(new MembershipService(fogDetails))
-                    .addService(new DataQueryService())
-                    .addService(new DataStoreService(fogInfo.getDeviceIP(), fogInfo.getDevicePort(), fogInfo.getDeviceId()))
+                    .addService(new DataService(fogInfo.getDeviceIP(), fogInfo.getDevicePort(), fogInfo.getDeviceId(), fogInfo.getToken()))
+                    .addService(new CoordinatorService(fogInfo.getDeviceId(), fogDetails))
                     .build();
-            try {
                 server.start();
             } catch (IOException e) {
                 e.printStackTrace();
