@@ -55,47 +55,51 @@
                 </configuration>
             </plugin>
             <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <configuration>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                </configuration>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.4.1</version>
                 <executions>
+                    <!-- Run shade goal on package phase -->
                     <execution>
-                        <id>make-assembly</id> <!-- this is used for inheritance merges -->
-                        <phase>package</phase> <!-- bind to the packaging phase -->
+                        <phase>package</phase>
                         <goals>
-                            <goal>single</goal>
+                            <goal>shade</goal>
                         </goals>
+                        <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
+
         </plugins>
     </build>
     <dependencies>
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-protobuf</artifactId>
-            <version>1.50.0</version>
+            <version>1.50.2</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/io.grpc/grpc-netty -->
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty-shaded</artifactId>
-            <version>1.50.0</version>
+            <version>1.50.2</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/io.grpc/grpc-stub -->
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-stub</artifactId>
-            <version>1.50.0</version>
+            <version>1.50.2</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/io.grpc/grpc-api -->
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-api</artifactId>
-            <version>1.50.0</version>
+            <version>1.50.2</version>
         </dependency>
         <dependency>
             <groupId>javax.annotation</groupId>
@@ -125,5 +129,11 @@
             <artifactId>influxdb-client-java</artifactId>
             <version>6.6.0</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.google.guava/guava -->
+<!--        <dependency>-->
+<!--            <groupId>com.google.guava</groupId>-->
+<!--            <artifactId>guava</artifactId>-->
+<!--            <version>31.1-jre</version>-->
+<!--        </dependency>-->
     </dependencies>
 </project>

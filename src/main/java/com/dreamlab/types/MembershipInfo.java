@@ -1,9 +1,12 @@
 package com.dreamlab.types;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.UUID;
 
-public class MembershipInfo {
+public class MembershipInfo implements Serializable {
+
+    private static final long serialVersionUID = -4274519773685314392L;
     private final UUID parentFogId;
     private final Instant lastHeartbeat;
     private final int ttlSecs;

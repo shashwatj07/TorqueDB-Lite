@@ -4,13 +4,16 @@ import com.dreamlab.edgefs.grpcServices.BlockIdReplicaMetadata;
 import com.dreamlab.types.DeviceInfo;
 import com.dreamlab.utils.Utils;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class BlockReplicaInfo {
+public class BlockReplicaInfo implements Serializable {
+
+    private static final long serialVersionUID = -8885818812042252438L;
     private final UUID blockID;
     private final List<DeviceInfo> replicaLocations;
 
@@ -26,6 +29,8 @@ public class BlockReplicaInfo {
                 .build();
     }
 
+
+
     public void addReplicaLocation(DeviceInfo replicaLocation) {
         replicaLocations.add(replicaLocation);
     }
@@ -38,4 +43,11 @@ public class BlockReplicaInfo {
         return Collections.unmodifiableList(replicaLocations);
     }
 
+    @Override
+    public String toString() {
+        return "BlockReplicaInfo{" +
+                "blockID=" + blockID +
+                ", replicaLocations=" + replicaLocations +
+                '}';
+    }
 }

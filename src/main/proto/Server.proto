@@ -1,10 +1,11 @@
 syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option java_multiple_files = true;
 option java_package = "com.dreamlab.edgefs.grpcServices";
-package com.dreamlab.grpc;
+//package com.dreamlab.grpc;
 
 service ParentServer {
 
@@ -23,6 +24,8 @@ service DataServer {
   rpc execTSDBQueryLocal (TSDBQueryRequest) returns (TSDBQueryResponse);
 
   rpc getBlockContentLocal (UUIDMessage) returns (BlockContentResponse);
+
+  rpc backupIndexLocal (google.protobuf.Empty) returns (Response);
 
 }
 
@@ -110,7 +113,7 @@ message FindBlocksRequest {
   optional BoundingBox boundingBox = 3;
   optional TimeRange timeRange = 4;
 
-  bool isOrQuery = 7;
+  bool isAndQuery = 7;
 
   optional bool returnBlockReplicas = 5;
   optional bool returnMetadata = 6;

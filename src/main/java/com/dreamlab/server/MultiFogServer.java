@@ -13,9 +13,9 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 
-public class FogServer {
+public class MultiFogServer {
 
-    private FogServer() {
+    private MultiFogServer() {
     }
 
     public static void main(String... args) throws IOException {

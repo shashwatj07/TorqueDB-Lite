@@ -9,8 +9,6 @@ import io.grpc.ManagedChannelBuilder;
 
 import java.io.IOException;
 
-import static com.dreamlab.utils.Utils.getBytes;
-
 public final class InsertBlock {
     private InsertBlock() {
     }
@@ -28,8 +26,8 @@ public final class InsertBlock {
         EdgeServerGrpc.EdgeServerBlockingStub edgeServerBlockingStub = EdgeServerGrpc.newBlockingStub(managedChannel);
         PutBlockAndMetadataRequest putBlockAndMetadataRequest = PutBlockAndMetadataRequest
                 .newBuilder()
-                .setBlockContent(getBytes(blockFilePath))
-                .setMetadataContent(getBytes(metadataFilePath))
+                .setBlockContent(Utils.getBytes(blockFilePath))
+                .setMetadataContent(Utils.getBytes(metadataFilePath))
                 .build();
         BlockIdResponse blockIdResponse = edgeServerBlockingStub
                 .putBlockAndMetadata(putBlockAndMetadataRequest);

@@ -2,10 +2,12 @@ package com.dreamlab.types;
 
 import com.dreamlab.constants.DeviceType;
 
+import java.io.Serializable;
 import java.util.UUID;
 
-public class FogInfo extends DeviceInfo {
+public class FogInfo extends DeviceInfo implements Serializable {
 
+    private static final long serialVersionUID = 5728320985779197204L;
     private final double latitude;
     private final double longitude;
     private final String token;

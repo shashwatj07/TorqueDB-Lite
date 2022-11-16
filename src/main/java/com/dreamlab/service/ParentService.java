@@ -22,7 +22,7 @@ import java.util.logging.Logger;
 
 public class ParentService extends ParentServerGrpc.ParentServerImplBase {
 
-    private static final Logger LOGGER = Logger.getLogger(ParentService.class.getName());
+    private final Logger LOGGER;
 
     private final UUID fogId;
 
@@ -33,6 +33,7 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
     private final Map<UUID, MembershipServerGrpc.MembershipServerBlockingStub> membershipStubs;
 
     public ParentService(UUID fogId, Map<UUID, FogInfo> fogDetails) {
+        LOGGER = Logger.getLogger(String.format("[Fog: %s] ", fogId.toString()));
         this.fogId = fogId;
         this.fogDetails = fogDetails;
         fogIds = new ArrayList<>(fogDetails.keySet());
@@ -42,7 +43,7 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
 
     @Override
     public void sendHeartbeat(HeartbeatRequest request, StreamObserver<Response> responseObserver) {
-        LOGGER.info("com.dreamlab.Heartbeat Received From: " + Utils.getUuidFromMessage(request.getEdgeId()));
+        LOGGER.info(LOGGER.getName() + "Heartbeat Received From: " + Utils.getUuidFromMessage(request.getEdgeId()));
         SetParentFogRequest.Builder builder = SetParentFogRequest.newBuilder();
         SetParentFogRequest setParentFogRequest = builder
                 .setEdgeId(request.getEdgeId())
@@ -50,7 +51,7 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
                 .setHeartbeatTimestamp(Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000).build())
                 .setTtlSecs(request.getTtlSecs())
                 .build();
-        List<Integer> membershipFogIndices = Utils.getMembershipFogIndices(Utils.getUuidFromMessage(request.getEdgeId()));
+        List<Integer> membershipFogIndices = Utils.getMembershipFogIndices(Utils.getUuidFromMessage(request.getEdgeId()), fogIds.size());
         membershipFogIndices.forEach(index -> sendParentInfoToMembershipFog(fogIds.get(index), setParentFogRequest));
         Response response = Response.newBuilder().setIsSuccess(true).build();
         responseObserver.onNext(response);
@@ -58,16 +59,17 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
     }
 
     private void sendParentInfoToMembershipFog(UUID membershipFogId, SetParentFogRequest setParentFogRequest) {
-        if (!membershipStubs.containsKey(membershipFogId)) {
-            FogInfo membershipFogInfo = fogDetails.get(membershipFogId);
-            ManagedChannel managedChannel = ManagedChannelBuilder
-                    .forAddress(String.valueOf(membershipFogInfo.getDeviceIP()), membershipFogInfo.getDevicePort())
-                    .usePlaintext()
-                    .build();
-            MembershipServerGrpc.MembershipServerBlockingStub membershipServerBlockingStub = MembershipServerGrpc.newBlockingStub(managedChannel);
-            membershipStubs.put(membershipFogId, membershipServerBlockingStub);
+        synchronized (membershipStubs) {
+            if (!membershipStubs.containsKey(membershipFogId)) {
+                FogInfo membershipFogInfo = fogDetails.get(membershipFogId);
+                ManagedChannel managedChannel = ManagedChannelBuilder
+                        .forAddress(String.valueOf(membershipFogInfo.getDeviceIP()), membershipFogInfo.getDevicePort())
+                        .usePlaintext()
+                        .build();
+                MembershipServerGrpc.MembershipServerBlockingStub membershipServerBlockingStub = MembershipServerGrpc.newBlockingStub(managedChannel);
+                membershipStubs.put(membershipFogId, membershipServerBlockingStub);
+            }
         }
         Response response = membershipStubs.get(membershipFogId).setParentFog(setParentFogRequest);
     }
-
 }

@@ -44,12 +44,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerImplBase {
 
-    private static final Logger LOGGER = Logger.getLogger(ParentService.class.getName());
+    private final Logger LOGGER;
     private final UUID fogId;
     private final int numFogs;
     private final Map<UUID, FogPartition> fogPartitions;
@@ -57,6 +58,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     private final Map<UUID, DataServerGrpc.DataServerBlockingStub> dataStubs;
 
     public CoordinatorService(UUID fogId, Map<UUID, FogInfo> fogDetails) {
+        LOGGER = Logger.getLogger(String.format("[Fog: %s] ", fogId.toString()));
         this.fogId = fogId;
         fogPartitions = generateFogPartitions(new ArrayList<>(fogDetails.values()));
         numFogs = fogDetails.size();
@@ -144,7 +146,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
         List<UUID> temporalShortlist = getTemporalShortlist(timeRange);
         UUID randomReplica = getRandomFogToReplicate(Utils.getUuidFromMessage(request.getBlockId()));
-        List<UUID> blockReplicaFogIds = getFogsToReplicate(spatialShortlist, temporalShortlist, randomReplica);
+        Set<UUID> blockReplicaFogIds = getFogsToReplicate(spatialShortlist, temporalShortlist, randomReplica);
         StoreBlockRequest storeBlockRequest = storeBlockRequestBuilder.build();
         blockReplicaFogIds.forEach(replicaFogId -> sendBlockToDataStoreFog(replicaFogId, storeBlockRequest));
         Response response = Response.newBuilder().setIsSuccess(true).build();
@@ -175,7 +177,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             jsonObject.remove(Keys.KEY_MIN_LONGITUDE);
             jsonObject.remove(Keys.KEY_MAX_LATITUDE);
             Iterator<String> keys = jsonObject.keys();
-            for (String key = keys.next(); keys.hasNext(); key = keys.next()) {
+            while (keys.hasNext()) {
+                String key = keys.next();
                 String value = (String) jsonObject.get(key);
                 indexMetadataRequestBuilder.putMetadataMap(key, value);
             }
@@ -203,12 +206,15 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
         List<UUID> temporalShortlist = getTemporalShortlist(timeRange);
         UUID randomReplica = getRandomFogToReplicate(Utils.getUuidFromMessage(request.getBlockId()));
-        List<UUID> blockReplicaFogIds = getFogsToReplicate(spatialShortlist, temporalShortlist, randomReplica);
-        indexMetadataRequestBuilder.putMetadataMap(Keys.KEY_REPLICA_FOGS, blockReplicaFogIds.toString());
+        Set<UUID> blockReplicaFogIds = getFogsToReplicate(spatialShortlist, temporalShortlist, randomReplica);
+//        indexMetadataRequestBuilder.putMetadataMap(Keys.KEY_REPLICA_FOGS, blockReplicaFogIds.toString());
+        indexMetadataRequestBuilder.addAllReplicas(blockReplicaFogIds.stream()
+                .map(blockReplicaFogId -> Utils.getMessageFromReplica(fogPartitions.get(blockReplicaFogId)))
+                .collect(Collectors.toList()));
         Collection<UUID> metadataReplicaFogIds = new HashSet<>();
         metadataReplicaFogIds.addAll(spatialShortlist);
         metadataReplicaFogIds.addAll(temporalShortlist);
-        metadataReplicaFogIds.add(randomReplica);
+        metadataReplicaFogIds.addAll(blockReplicaFogIds);
         IndexMetadataRequest indexMetadataRequest = indexMetadataRequestBuilder.build();
         metadataReplicaFogIds.forEach(replicaFogId -> sendMetadataToDataStoreFog(replicaFogId, indexMetadataRequest));
         Response response = Response.newBuilder().setIsSuccess(true).build();
@@ -271,15 +277,30 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     }
 
     private List<UUID> getTemporalShortlist(TimeRange timeRange) {
-        List<Instant> timeChunks = Utils.getTimeChunks(timeRange, Constants.TIME_CHUNK);
+        List<Instant> timeChunks = Utils.getTimeChunks(timeRange, Constants.TIME_CHUNK_SECONDS);
         return timeChunks.stream().map(chunk -> fogIds.get(Math.abs(chunk.hashCode() % numFogs))).collect(Collectors.toList());
     }
 
-    private List<UUID> getFogsToReplicate(List<UUID> spatialShortlist, List<UUID> temporalShortlist, UUID randomReplica) {
-        // TODO: Handle collisions, Change Hash Function
-        UUID spacialReplica = Utils.getRandomElement(spatialShortlist);
-        UUID temporalReplica = Utils.getRandomElement(temporalShortlist);
-        return List.of(spacialReplica, temporalReplica, randomReplica);
+    private Set<UUID> getFogsToReplicate(List<UUID> spatialShortlist, List<UUID> temporalShortlist, UUID randomReplica) {
+        Set<UUID> replicas = new HashSet<>(Set.of(randomReplica));
+        o: for (UUID spacialReplica: spatialShortlist) {
+            for (UUID temporalReplica : temporalShortlist) {
+                if (!spacialReplica.equals(temporalReplica) && !replicas.contains(spacialReplica) && !replicas.add(temporalReplica)) {
+                    replicas.add(spacialReplica);
+                    replicas.add(temporalReplica);
+                    break o;
+                }
+            }
+        }
+        if (replicas.size() < 3) {
+            for (UUID anyReplica : fogIds) {
+                replicas.add(anyReplica);
+                if (replicas.size() >= 3) {
+                    break;
+                }
+            }
+        }
+        return replicas;
     }
 
     private UUID getRandomFogToReplicate(UUID blockId) {
@@ -287,14 +308,16 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     }
 
     private DataServerGrpc.DataServerBlockingStub getDataStub(UUID fogId) {
-        if (!dataStubs.containsKey(fogId)) {
-            FogPartition membershipFogInfo = fogPartitions.get(fogId);
-            ManagedChannel managedChannel = ManagedChannelBuilder
-                    .forAddress(String.valueOf(membershipFogInfo.getDeviceIP()), membershipFogInfo.getDevicePort())
-                    .usePlaintext()
-                    .build();
-            DataServerGrpc.DataServerBlockingStub dataServerBlockingStub = DataServerGrpc.newBlockingStub(managedChannel);
-            dataStubs.put(fogId, dataServerBlockingStub);
+        synchronized (dataStubs) {
+            if (!dataStubs.containsKey(fogId)) {
+                FogPartition membershipFogInfo = fogPartitions.get(fogId);
+                ManagedChannel managedChannel = ManagedChannelBuilder
+                        .forAddress(String.valueOf(membershipFogInfo.getDeviceIP()), membershipFogInfo.getDevicePort())
+                        .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
+                        .build();
+                DataServerGrpc.DataServerBlockingStub dataServerBlockingStub = DataServerGrpc.newBlockingStub(managedChannel);
+                dataStubs.put(fogId, dataServerBlockingStub);
+            }
         }
         return dataStubs.get(fogId);
     }

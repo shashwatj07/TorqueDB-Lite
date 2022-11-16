@@ -4,11 +4,13 @@ import com.dreamlab.constants.DeviceType;
 import com.dreamlab.edgefs.grpcServices.BlockReplica;
 import com.dreamlab.utils.Utils;
 
+import java.io.Serializable;
 import java.util.Objects;
 import java.util.UUID;
 
-public class DeviceInfo {
+public class DeviceInfo implements Serializable {
 
+    private static final long serialVersionUID = -9127666523157800538L;
     private final UUID deviceId;
     private final String deviceIP;
     private final int devicePort;
@@ -60,6 +62,16 @@ public class DeviceInfo {
 
     public DeviceType getDeviceType() {
         return deviceType;
+    }
+
+    @Override
+    public String toString() {
+        return "DeviceInfo{" +
+                "deviceId=" + deviceId +
+                ", deviceIP='" + deviceIP + '\'' +
+                ", devicePort=" + devicePort +
+                ", deviceType=" + deviceType +
+                '}';
     }
 }
 

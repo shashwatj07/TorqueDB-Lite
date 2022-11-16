@@ -4,6 +4,7 @@ import com.dreamlab.Heartbeat;
 import com.dreamlab.LocationHandler;
 import com.dreamlab.edgefs.grpcServices.BlockIdResponse;
 import com.dreamlab.edgefs.grpcServices.CoordinatorServerGrpc;
+import com.dreamlab.edgefs.grpcServices.DataServerGrpc;
 import com.dreamlab.edgefs.grpcServices.EdgeServerGrpc;
 import com.dreamlab.edgefs.grpcServices.PutBlockAndMetadataRequest;
 import com.dreamlab.edgefs.grpcServices.PutBlockRequest;
@@ -17,8 +18,10 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
 
@@ -38,18 +41,21 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
 
     private final Map<UUID, FogInfo> fogDetails;
 
-    public EdgeService(UUID id, String ip, int port, int heartbeatTtlSecs, String fogsConfigFilePath) throws IOException {
+    private final Map<UUID, CoordinatorServerGrpc.CoordinatorServerBlockingStub> coordinatorStubs;
+
+    public EdgeService(UUID id, String ip, int port, int heartbeatTtlSecs, String fogsConfigFilePath, String trajectoryFilePath) throws IOException {
         this.id  = id;
         this.ip = ip;
         this.port = port;
         this.heartbeatTtlSecs = heartbeatTtlSecs;
         fogDetails = Utils.readFogDetails(fogsConfigFilePath);
+        Runnable locationHandler = new LocationHandler(this, id, heartbeatTtlSecs, trajectoryFilePath);
+        Thread locationThread = new Thread(locationHandler);
+        locationThread.start();
         Runnable heartbeat = new Heartbeat(this, id, heartbeatTtlSecs, fogDetails);
         heartbeatThread = new Thread(heartbeat);
         heartbeatThread.start();
-        Runnable locationHandler = new LocationHandler(this, id, heartbeatTtlSecs);
-        Thread locationThread = new Thread(locationHandler);
-        locationThread.start();
+        coordinatorStubs = new HashMap<>();
     }
 
     @Override
@@ -64,12 +70,9 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
         putMetadataRequestBuilder.setBlockId(blockId);
         putMetadataRequestBuilder.setMetadataContent(request.getMetadataContent());
 
-        final FogInfo parentFogInfo = Utils.getParentFog(fogDetails, 1.5, 1.5);
-        ManagedChannel managedChannel = ManagedChannelBuilder
-                .forAddress(parentFogInfo.getDeviceIP(), parentFogInfo.getDevicePort())
-                .usePlaintext()
-                .build();
-        CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
+        final FogInfo parentFogInfo = Utils.getParentFog(fogDetails, getLatitude(), getLongitude());
+
+        CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = getCoordinatorStub(parentFogInfo.getDeviceId());
         Response putBlockResponse = coordinatorServerBlockingStub.putBlockByMetadata(putBlockRequestBuilder.build());
         Response putMetadataResponse = coordinatorServerBlockingStub.putMetadata(putMetadataRequestBuilder.build());
         BlockIdResponse.Builder blockIdResponseBuilder = BlockIdResponse.newBuilder();
@@ -78,6 +81,21 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
 
         responseObserver.onNext(blockIdResponseBuilder.build());
         responseObserver.onCompleted();
+    }
+
+    private CoordinatorServerGrpc.CoordinatorServerBlockingStub getCoordinatorStub(UUID fogId) {
+        synchronized (coordinatorStubs) {
+            if (!coordinatorStubs.containsKey(fogId)) {
+                FogInfo fogInfo = fogDetails.get(fogId);
+                ManagedChannel managedChannel = ManagedChannelBuilder
+                        .forAddress(String.valueOf(fogInfo.getDeviceIP()), fogInfo.getDevicePort())
+                        .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
+                        .build();
+                CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
+                coordinatorStubs.put(fogId, coordinatorServerBlockingStub);
+            }
+        }
+        return coordinatorStubs.get(fogId);
     }
 
     public double getLatitude() {

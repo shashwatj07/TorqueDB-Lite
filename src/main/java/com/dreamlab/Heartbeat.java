@@ -58,10 +58,11 @@ public class Heartbeat implements Runnable {
     public void run() {
         while (true) {
             try {
+                Thread.sleep(1000L * ttlSecs);
                 updateParentFog();
                 stubs.get(parentFogId).sendHeartbeat(heartbeatRequest);
-                LOGGER.info(LOGGER.getName() + "com.dreamlab.Heartbeat Sent To: " + parentFogId);
-                Thread.sleep(1000L * ttlSecs);
+                LOGGER.info(String.format("%sCurrent Location (%f, %f)", LOGGER.getName(), edgeService.getLatitude(), edgeService.getLongitude()));
+                LOGGER.info(LOGGER.getName() + "Heartbeat Sent To: " + parentFogId);
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, LOGGER.getName() + e.getMessage(), e);
             }

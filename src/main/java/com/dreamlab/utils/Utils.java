@@ -1,23 +1,33 @@
 package com.dreamlab.utils;
 
-import com.dreamlab.types.DeviceInfo;
-import com.dreamlab.types.FogInfo;
-import com.dreamlab.types.FogPartition;
 import com.dreamlab.constants.Constants;
 import com.dreamlab.constants.DeviceType;
 import com.dreamlab.edgefs.grpcServices.BlockReplica;
 import com.dreamlab.edgefs.grpcServices.BoundingBox;
 import com.dreamlab.edgefs.grpcServices.TimeRange;
 import com.dreamlab.edgefs.grpcServices.UUIDMessage;
+import com.dreamlab.types.DeviceInfo;
+import com.dreamlab.types.FogInfo;
+import com.dreamlab.types.FogPartition;
 import com.google.common.geometry.S2CellId;
 import com.google.common.geometry.S2LatLng;
 import com.google.common.geometry.S2LatLngRect;
 import com.google.common.geometry.S2RegionCoverer;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.util.GeometricShapeFactory;
 
 import java.awt.geom.Point2D;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,12 +42,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.util.GeometricShapeFactory;
 
 public final class Utils {
 
@@ -57,23 +61,13 @@ public final class Utils {
     }
 
     public static DeviceInfo getReplicaFromMessage(BlockReplica blockReplica) {
-        DeviceType deviceType;
-        if (blockReplica.getDeviceType() == 0) {
-            deviceType = DeviceType.FOG;
-        } else {
-            deviceType = DeviceType.EDGE;
-        }
+        DeviceType deviceType = DeviceType.get(blockReplica.getDeviceType());
         return new DeviceInfo(getUuidFromMessage(blockReplica.getDeviceId()),
                 blockReplica.getIp(), blockReplica.getPort(), deviceType);
     }
 
     public static BlockReplica getMessageFromReplica(DeviceInfo replicaLocation) {
-        int deviceType;
-        if (replicaLocation.getDeviceType() == DeviceType.FOG) {
-            deviceType = 0;
-        } else {
-            deviceType = 1;
-        }
+        int deviceType = replicaLocation.getDeviceType().ordinal();
         return BlockReplica
                 .newBuilder()
                 .setDeviceId(getMessageFromUUID(replicaLocation.getDeviceId()))
@@ -87,26 +81,27 @@ public final class Utils {
         return new S2LatLngRect(S2LatLng.fromDegrees(minLat, minLon), S2LatLng.fromDegrees(maxLat, maxLon));
     }
 
-    public static List<S2CellId> getCellIds(BoundingBox boundingBox) {
+    public static List<S2CellId> getCellIds(BoundingBox boundingBox, int s2CellLevel) {
         return getCellIds(boundingBox.getBottomRightLatLon().getLatitude(), boundingBox.getTopLeftLatLon().getLongitude(),
-                boundingBox.getTopLeftLatLon().getLatitude(), boundingBox.getBottomRightLatLon().getLongitude());
+                boundingBox.getTopLeftLatLon().getLatitude(), boundingBox.getBottomRightLatLon().getLongitude(), s2CellLevel);
     }
 
-    public static List<S2CellId> getCellIds(double minLat, double minLon, double maxLat, double maxLon) {
+    public static List<S2CellId> getCellIds(double minLat, double minLon, double maxLat, double maxLon, int s2CellLevel) {
         S2LatLngRect s2LatLngRect = toS2Rectangle(minLat, minLon, maxLat, maxLon);
         S2RegionCoverer s2RegionCoverer = S2RegionCoverer.builder()
-                .setMaxLevel(Constants.S2_CELL_LEVEL)
-                .setMinLevel(Constants.S2_CELL_LEVEL)
+                .setMaxLevel(s2CellLevel)
+                .setMinLevel(s2CellLevel)
                 .setMaxCells(Integer.MAX_VALUE)
                 .build();
         return s2RegionCoverer.getCovering(s2LatLngRect).cellIds();
     }
 
-    public static List<Instant> getTimeChunks(TimeRange timeRange, int chunkSizeInMinutes) {
-        Instant startInstant = getInstantFromTimestampMessage(timeRange.getStartTimestamp());
-        Instant endInstant = getInstantFromTimestampMessage(timeRange.getEndTimestamp());
+    public static List<Instant> getTimeChunks(TimeRange timeRange, int chunkSizeSeconds) {
+        final Instant exactStartInstant = getInstantFromTimestampMessage(timeRange.getStartTimestamp());
+        final Instant startInstant = Instant.ofEpochSecond(exactStartInstant.getEpochSecond() - ((exactStartInstant.getEpochSecond() - Instant.MIN.getEpochSecond()) % chunkSizeSeconds));
+        final Instant endInstant = getInstantFromTimestampMessage(timeRange.getEndTimestamp());
         List<Instant> timeChunks = new ArrayList<>();
-        for (Instant instant = startInstant; instant.isBefore(endInstant); instant = instant.plus(chunkSizeInMinutes, ChronoUnit.MINUTES)) {
+        for (Instant instant = startInstant; instant.isBefore(endInstant); instant = instant.plus(chunkSizeSeconds, ChronoUnit.SECONDS)) {
             timeChunks.add(instant);
         }
         return timeChunks;
@@ -114,7 +109,7 @@ public final class Utils {
 
     public static Instant getInstantFromTimestampMessage(Timestamp timestamp) {
         return Instant
-                .ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos())
+                .ofEpochSecond(timestamp.getSeconds())
                 .atZone(ZoneId.of(Constants.ZONE_ID)).toInstant();
     }
 
@@ -122,14 +117,18 @@ public final class Utils {
         return Timestamp
                 .newBuilder()
                 .setSeconds(instant.getEpochSecond())
-                .setNanos(instant.getNano())
                 .build();
     }
 
     public static Instant getInstantFromString(String timestamp) {
         return LocalDateTime.parse(timestamp,
-            DateTimeFormatter.ofPattern( Constants.DATE_TIME_PATTERN, Locale.US)
+            DateTimeFormatter.ofPattern(Constants.DATE_TIME_PATTERN, Locale.US)
         ).atZone(ZoneId.of(Constants.ZONE_ID)).toInstant();
+    }
+
+    public static String getStringFromInstant(Instant instant) {
+        return LocalDateTime.ofInstant(instant, ZoneId.of(Constants.ZONE_ID))
+                .format(DateTimeFormatter.ofPattern(Constants.DATE_TIME_PATTERN, Locale.US));
     }
 
     public static Coordinate getCoordinateFromFogInfo(FogInfo fogInfo) {
@@ -159,12 +158,12 @@ public final class Utils {
         return fogDetails;
     }
 
-    public static List<Integer> getMembershipFogIndices(UUID edgeId) {
-        // TODO
+    public static List<Integer> getMembershipFogIndices(UUID edgeId, int numFogs) {
         List<Integer> membershipFogIndices = new ArrayList<>();
-        membershipFogIndices.add(0);
-        membershipFogIndices.add(1);
-        membershipFogIndices.add(2);
+        int uuidInt = Math.abs(edgeId.hashCode());
+        membershipFogIndices.add(uuidInt % numFogs);
+        membershipFogIndices.add((uuidInt + 1) % numFogs);
+        membershipFogIndices.add((uuidInt + 2) % numFogs);
         return membershipFogIndices;
     }
 
@@ -202,5 +201,21 @@ public final class Utils {
     public static ByteString getBytes(String first) throws IOException {
         byte[] bytes = Files.readAllBytes(Path.of(first));
         return ByteString.copyFrom(bytes);
+    }
+
+    public static void writeObjectToFile(Object object, String filePath) throws IOException {
+        File file = new File(filePath);
+        file.getParentFile().mkdirs();
+        file.createNewFile();
+        ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(file));
+        objectOutputStream.writeObject(object);
+        objectOutputStream.close();
+    }
+
+    public static Object readObjectFromFile(String filePath) throws IOException, ClassNotFoundException {
+        ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(filePath));
+        Object object = objectInputStream.readObject();
+        objectInputStream.close();
+        return object;
     }
 }

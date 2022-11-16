@@ -1,0 +1,22 @@
+{
+    "measurement": "SF",
+    "mbId": "1",
+    "bucket": "example",
+    "city": "San_Francisco",
+    "startTS": "2015-02-01 00-00-00",
+    "endTS": "2015-02-02 00-00-00",
+    "min_temperature": "16.0",
+    "max_temperature": "39.3",
+    "min_dust": "0.62",
+    "max_dust": "5960.56",
+    "min_sound": "8.5",
+    "max_sound": "81.4",
+    "min_light": "6",
+    "max_light": "10495",
+    "min_UV": "6",
+    "max_UV": "58",
+    "min_lat": "40.020748",
+    "max_lat": "40.028407",
+    "min_lon": "116.309046",
+    "max_lon": "116.316306"
+}

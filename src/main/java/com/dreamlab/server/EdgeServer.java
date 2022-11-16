@@ -18,9 +18,10 @@ public class EdgeServer {
         final int edgePort = Integer.parseInt(args[1]);
         final int heartbeatTtlSecs = Integer.parseInt(args[2]);
         final String fogsConfigFilePath = args[3];
+        final String trajectoryFilePath = args[4];
         Server server = ServerBuilder
                 .forPort(edgePort)
-                .addService(new EdgeService(edgeId, edgeIp, edgePort, heartbeatTtlSecs, fogsConfigFilePath))
+                .addService(new EdgeService(edgeId, edgeIp, edgePort, heartbeatTtlSecs, fogsConfigFilePath, trajectoryFilePath))
                 .build();
         server.start();
         System.out.println("Edge Server started at " + server.getPort());

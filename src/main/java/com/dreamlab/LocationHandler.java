@@ -23,12 +23,12 @@ public class LocationHandler implements Runnable {
 
     private final Logger LOGGER;
 
-    public LocationHandler(EdgeService edgeService, UUID edgeId, int ttlSecs) throws FileNotFoundException {
+    public LocationHandler(EdgeService edgeService, UUID edgeId, int ttlSecs, String trajectoryFilePath) throws FileNotFoundException {
         LOGGER = Logger.getLogger(String.format("[Edge: %s] ", edgeId.toString()));
         this.edgeService = edgeService;
         this.ttlSecs = ttlSecs;
         this.edgeId = edgeId;
-        this.locationReader = new BufferedReader(new FileReader(edgeId.toString()));
+        this.locationReader = new BufferedReader(new FileReader(trajectoryFilePath));
     }
 
     private void updateLocation() throws IOException {

@@ -2,8 +2,11 @@ package com.dreamlab.types;
 
 import org.locationtech.jts.geom.Polygon;
 
-public class FogPartition extends FogInfo {
+import java.io.Serializable;
 
+public class FogPartition extends FogInfo implements Serializable {
+
+    private static final long serialVersionUID = 340163714945927422L;
     private Polygon polygon;
 
     public FogPartition(FogInfo fogInfo, Polygon polygon) {
