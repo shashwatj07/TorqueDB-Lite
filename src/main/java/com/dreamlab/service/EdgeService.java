@@ -1,10 +1,9 @@
 package com.dreamlab.service;
 
-import com.dreamlab.Heartbeat;
-import com.dreamlab.LocationHandler;
+import com.dreamlab.utils.Heartbeat;
+import com.dreamlab.utils.LocationHandler;
 import com.dreamlab.edgefs.grpcServices.BlockIdResponse;
 import com.dreamlab.edgefs.grpcServices.CoordinatorServerGrpc;
-import com.dreamlab.edgefs.grpcServices.DataServerGrpc;
 import com.dreamlab.edgefs.grpcServices.EdgeServerGrpc;
 import com.dreamlab.edgefs.grpcServices.PutBlockAndMetadataRequest;
 import com.dreamlab.edgefs.grpcServices.PutBlockRequest;

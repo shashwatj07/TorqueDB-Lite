@@ -27,6 +27,8 @@ service DataServer {
 
   rpc backupIndexLocal (google.protobuf.Empty) returns (Response);
 
+  rpc logIndexLocal (google.protobuf.Empty) returns (Response);
+
 }
 
 service CoordinatorServer {
@@ -142,7 +144,7 @@ message BlockReplica {
 }
 
 message TSDBQueryRequest {
-  string fluxQuery = 1;
+  bytes fluxQuery = 1;
 }
 
 message TSDBQueryResponse {

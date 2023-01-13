@@ -2,8 +2,12 @@ package com.dreamlab.query;
 
 import com.dreamlab.api.Condition;
 import com.dreamlab.api.TSDBQuery;
+import com.dreamlab.constants.Cache;
+import com.dreamlab.constants.Constants;
 import com.dreamlab.constants.JoinType;
+import com.dreamlab.constants.Model;
 import com.dreamlab.constants.Operation;
+import com.dreamlab.constants.QueryPolicy;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -19,12 +23,12 @@ import java.util.regex.Pattern;
 
 public class InfluxDBQuery implements TSDBQuery, Serializable {
 
+    private static final long serialVersionUID = 1462683465307549481L;
     private static Logger LOGGER = Logger.getLogger(InfluxDBQuery.class.getName());
     public String experiment = "default";
-//    public Mechanism mechanism = null;
-//    public Deployment deployment = null;
-//    public QueryPolicy queryPolicy = null;
-//    public Caching caching = null;
+    public Model model = null;
+    public QueryPolicy queryPolicy = null;
+    public Cache cache = null;
     private String queryId;
     private String bucket;
     private LinkedHashMap<String, HashMap<String, String>> operations = new LinkedHashMap<>();
@@ -40,10 +44,9 @@ public class InfluxDBQuery implements TSDBQuery, Serializable {
         temp.join = join;
         temp.conditions = conditions;
         temp.experiment = experiment;
-//        temp.mechanism = mechanism;
-//        temp.deployment = deployment;
-//        temp.queryPolicy = queryPolicy;
-//        temp.caching = caching;
+        temp.model = model;
+        temp.queryPolicy = queryPolicy;
+        temp.cache = cache;
 
         return temp;
     }
@@ -52,13 +55,12 @@ public class InfluxDBQuery implements TSDBQuery, Serializable {
         this.bucket = name;
     }
 
-//    public void addOptionalParameters(Mechanism mechanism, Caching caching,
-//                                      QueryPolicy queryPolicy, Deployment deployment) {
-//        this.mechanism = mechanism;
-//        this.caching = caching;
-//        this.queryPolicy = queryPolicy;
-//        this.deployment = deployment;
-//    }
+    public void addOptionalParameters(Model model, Cache cache,
+                                      QueryPolicy queryPolicy) {
+        this.model = model;
+        this.cache = cache;
+        this.queryPolicy = queryPolicy;
+    }
 
     public void addQueryId() {
         String uuid = UUID.randomUUID().toString();
@@ -72,13 +74,21 @@ public class InfluxDBQuery implements TSDBQuery, Serializable {
         operations.put("range", rangeMap);
     }
 
+    public void addRegion(String minLat, String maxLat, String minLon, String maxLon) {
+        HashMap<String, String> regionMap = new HashMap<>();
+        regionMap.put("minLat", minLat);
+        regionMap.put("maxLat", maxLat);
+        regionMap.put("minLon", minLon);
+        regionMap.put("maxLon", maxLon);
+        operations.put("region", regionMap);
+    }
 
     public void addFilter(String m_name, List<String> tag_list, List<String> field_list) {
         HashMap<String, String> filterMap = new HashMap<>();
 
         filterMap.put("measurement", m_name);
         // Edge-JOIN modification
-        filterMap.put("measurement_join", "");
+//        filterMap.put("measurement_join", "");
 
         for (int i = 0; i < tag_list.size(); i++) {
             String tagKey = "tag" + i;
@@ -200,6 +210,16 @@ public class InfluxDBQuery implements TSDBQuery, Serializable {
         return this.experiment;
     }
 
+    @Override
+    public Model getModel() {
+        return this.model;
+    }
+
+    @Override
+    public QueryPolicy getQueryPolicy() {
+        return this.queryPolicy;
+    }
+
 //    public Mechanism getMechanism() {
 //        return this.mechanism;
 //    }
@@ -263,6 +283,12 @@ public class InfluxDBQuery implements TSDBQuery, Serializable {
             } else if (key.equals("range")) {
                 ret.add("startTS");
                 ret.add("endTS");
+            }
+            else if (key.equals("region")) {
+                ret.add("minLat");
+                ret.add("maxLat");
+                ret.add("minLon");
+                ret.add("maxLon");
             }
         }
         return ret;
@@ -342,13 +368,11 @@ public class InfluxDBQuery implements TSDBQuery, Serializable {
     }
 
     public void removeRange() {
-        int index = -1;
-        for (String key : operations.keySet()) {
-            if (key.equals("range")) {
-                operations.remove("range");
-                break;
-            }
-        }
+        operations.remove("range");
+    }
+
+    public void removeRegion() {
+        operations.remove("region");
     }
 
     public void removeCondition(String col, String value) {
@@ -372,5 +396,20 @@ public class InfluxDBQuery implements TSDBQuery, Serializable {
                 conditions.remove(index);
             }
         }
+    }
+
+    @Override
+    public String toString() {
+        return "InfluxDBQuery{" +
+                "experiment='" + experiment + '\'' +
+                ", model=" + model +
+                ", queryPolicy=" + queryPolicy +
+                ", cache=" + cache +
+                ", queryId='" + queryId + '\'' +
+                ", bucket='" + bucket + '\'' +
+                ", operations=" + operations +
+                ", join=" + join +
+                ", conditions=" + conditions +
+                '}';
     }
 }

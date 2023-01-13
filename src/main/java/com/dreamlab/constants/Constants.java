@@ -11,7 +11,6 @@ public final class Constants {
     public static final int TIME_CHUNK_SECONDS = 10;
     public static final SecureRandom RANDOM = new SecureRandom();
     public static final int S2_CELL_LEVEL = 20;
-    public static final int BACKUP_INTERVAL_SECS = 100000;
     public static final String DATE_TIME_PATTERN = "uuuu-MM-dd HH-mm-ss";
     public static final String ZONE_ID = "Z";
 

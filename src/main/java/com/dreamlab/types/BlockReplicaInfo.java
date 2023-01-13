@@ -1,13 +1,13 @@
 package com.dreamlab.types;
 
 import com.dreamlab.edgefs.grpcServices.BlockIdReplicaMetadata;
-import com.dreamlab.types.DeviceInfo;
 import com.dreamlab.utils.Utils;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -49,5 +49,18 @@ public class BlockReplicaInfo implements Serializable {
                 "blockID=" + blockID +
                 ", replicaLocations=" + replicaLocations +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BlockReplicaInfo that = (BlockReplicaInfo) o;
+        return blockID.equals(that.blockID);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(blockID);
     }
 }

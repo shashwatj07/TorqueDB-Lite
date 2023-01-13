@@ -1,4 +1,4 @@
-package com.dreamlab;
+package com.dreamlab.utils;
 
 import com.dreamlab.service.EdgeService;
 

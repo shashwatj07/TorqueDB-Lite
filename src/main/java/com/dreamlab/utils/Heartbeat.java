@@ -1,4 +1,4 @@
-package com.dreamlab;
+package com.dreamlab.utils;
 
 import com.dreamlab.edgefs.grpcServices.HeartbeatRequest;
 import com.dreamlab.edgefs.grpcServices.ParentServerGrpc;

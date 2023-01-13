@@ -17,15 +17,19 @@ public class GenerateBlocks {
     private static double startLon = 0;
     private static long startTime = 1667000000;
 
+    private static final String MEASUREMENT = "test";
+
     public static void main(String[] args) throws FileNotFoundException {
         String rootDir = args[0];
-        int numBlocks = Integer.parseInt(args[1]);
-        int numEdges = Integer.parseInt(args[2]);
+        int numEdges = Integer.parseInt(args[1]);
+        int numBlocks = Integer.parseInt(args[2]);
+        int numLines = Integer.parseInt(args[3]);
         for (int edgeCount = 1; edgeCount <= numEdges; edgeCount++) {
             PrintWriter summaryWriter = new PrintWriter(String.format("%s/summary/edge_%d.csv", rootDir, edgeCount));
             PrintWriter trajectoryWriter = new PrintWriter(String.format("%s/trajectory/edge_%d.csv", rootDir, edgeCount));
             summaryWriter.println(String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s",
-                    Keys.KEY_MIN_LATITUDE, Keys.KEY_MAX_LATITUDE, Keys.KEY_MIN_LONGITUDE, Keys.KEY_MAX_LONGITUDE, Keys.KEY_START_TIMESTAMP, Keys.KEY_END_TIMESTAMP, "p1", "p2", "p3"));
+                    Keys.KEY_MIN_LATITUDE, Keys.KEY_MAX_LATITUDE, Keys.KEY_MIN_LONGITUDE, Keys.KEY_MAX_LONGITUDE,
+                    Keys.KEY_START_TIMESTAMP, Keys.KEY_END_TIMESTAMP, "p1", "p2", "p3"));
             int blockCount = 0;
             startLat = 0;
             startLon = 0;
@@ -83,4 +87,5 @@ public class GenerateBlocks {
             startLon += Math.signum(Constants.RANDOM.nextDouble() - 0.5) * INTERVAL_LAT_LON;
         }
     }
+
 }

@@ -4,9 +4,9 @@ package com.dreamlab.api;
 //import com.dreamlab.QueryClasses.Deployment;
 import com.dreamlab.constants.Operation;
 import com.dreamlab.query.Join;
-//import com.dreamlab.QueryClasses.Mechanism;
+import com.dreamlab.constants.Model;
 //import com.dreamlab.QueryClasses.Operation;
-//import com.dreamlab.QueryClasses.QueryPolicy;
+import com.dreamlab.constants.QueryPolicy;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
@@ -26,11 +26,11 @@ public interface TSDBQuery extends Serializable {
 
     String getExperiment();
 
-//    Mechanism getMechanism();
+    Model getModel();
 //
 //    Deployment getDeployment();
 //
-//    QueryPolicy getQueryPolicy();
+    QueryPolicy getQueryPolicy();
 //
 //    Caching getCaching();
 

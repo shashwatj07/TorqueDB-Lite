@@ -129,6 +129,11 @@
             <artifactId>influxdb-client-java</artifactId>
             <version>6.6.0</version>
         </dependency>
+        <dependency>
+            <artifactId>commons-lang3</artifactId>
+            <groupId>org.apache.commons</groupId>
+            <version>3.12.0</version>
+        </dependency>
         <!-- https://mvnrepository.com/artifact/com.google.guava/guava -->
 <!--        <dependency>-->
 <!--            <groupId>com.google.guava</groupId>-->

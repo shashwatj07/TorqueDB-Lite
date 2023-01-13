@@ -102,6 +102,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
 
     @Override
     public void indexMetadataLocal(IndexMetadataRequest request, StreamObserver<Response> responseObserver) {
+        LOGGER.info(LOGGER.getName() + String.format("Indexing Metadata on %s:%d", serverIp, serverPort));
         Response.Builder responseBuilder = Response.newBuilder();
         BlockReplicaInfo blockReplicaInfo = new BlockReplicaInfo(Utils.getUuidFromMessage(request.getBlockId()));
         request.getReplicasList()
@@ -133,6 +134,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
 
     @Override
     public void storeBlockLocal(StoreBlockRequest request, StreamObserver<Response> responseObserver) {
+        LOGGER.info(LOGGER.getName() + String.format("Storing Block on %s:%d", serverIp, serverPort));
         Response.Builder responseBuilder = Response.newBuilder();
         File fogStoreDir = new File(String.format("store/%s", fogId));
         fogStoreDir.mkdirs();
@@ -151,59 +153,96 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
 
     @Override
     public void findBlocksLocal(FindBlocksRequest request, StreamObserver<FindBlocksResponse> responseObserver) {
+        LOGGER.info(LOGGER.getName() + String.format("Finding Block on %s:%d", serverIp, serverPort));
         FindBlocksResponse.Builder findBlockResponseBuilder = FindBlocksResponse.newBuilder();
         Set<BlockReplicaInfo> relevantBlocks = new HashSet<>();
-
         List<Instant> timeChunks = Utils.getTimeChunks(request.getTimeRange(), Constants.TIME_CHUNK_SECONDS);
         List<S2CellId> s2CellIds = Utils.getCellIds(request.getBoundingBox(), Constants.S2_CELL_LEVEL);
         if (!request.getIsAndQuery()) {
+            LOGGER.info(LOGGER.getName() + "OR Query");
             if (request.hasBlockId()) {
                 UUID blockId = Utils.getUuidFromMessage(request.getBlockId());
                 if (blockIdMap.containsKey(blockId)) {
                     relevantBlocks.add(blockIdMap.get(blockId));
                 }
             }
-            for (Instant timeChunk : timeChunks) {
-                relevantBlocks.addAll(timeMap.getOrDefault(timeChunk, Constants.EMPTY_LIST_REPLICA));
+            if (request.hasTimeRange()) {
+                for (Instant timeChunk : timeChunks) {
+                    relevantBlocks.addAll(timeMap.getOrDefault(timeChunk, Constants.EMPTY_LIST_REPLICA));
+                }
             }
-            for (S2CellId s2CellId : s2CellIds) {
-                relevantBlocks.addAll(geoMap.getOrDefault(s2CellId, Constants.EMPTY_LIST_REPLICA));
+            if (request.hasBoundingBox()) {
+                for (S2CellId s2CellId : s2CellIds) {
+                    relevantBlocks.addAll(geoMap.getOrDefault(s2CellId, Constants.EMPTY_LIST_REPLICA));
+                }
             }
             for (Map.Entry<String, String> predicate : request.getMetadataMapMap().entrySet()) {
                 relevantBlocks.addAll(metaMap.getOrDefault(predicate.getKey(), Constants.EMPTY_MAP_STRING_LIST_REPLICA).getOrDefault(predicate.getValue(), Constants.EMPTY_LIST_REPLICA));
             }
+            LOGGER.info(String.valueOf(relevantBlocks.size()));
         }
         else {
+            LOGGER.info(LOGGER.getName() + "AND Query");
+            boolean flag = false;
             if (request.hasBlockId()) {
+                flag = true;
                 UUID blockId = Utils.getUuidFromMessage(request.getBlockId());
                 if (blockIdMap.containsKey(blockId)) {
                     relevantBlocks.add(blockIdMap.get(blockId));
                 }
             }
-            for (Instant timeChunk : timeChunks) {
-                // TODO: Check if timeChunks is empty
-                relevantBlocks.addAll(timeMap.getOrDefault(timeChunk, Constants.EMPTY_LIST_REPLICA));
+            if (request.hasTimeRange()) {
+                if (flag) {
+                    Set<BlockReplicaInfo> timeBlocks = new HashSet<>();
+                    for (Instant timeChunk : timeChunks) {
+                        timeBlocks.addAll(timeMap.getOrDefault(timeChunk, Constants.EMPTY_LIST_REPLICA));
+                    }
+                    relevantBlocks.retainAll(timeBlocks);
+                }
+                else {
+                    flag = true;
+                    for (Instant timeChunk : timeChunks) {
+                        relevantBlocks.addAll(timeMap.getOrDefault(timeChunk, Constants.EMPTY_LIST_REPLICA));
+                    }
+                }
+
             }
-            for (S2CellId s2CellId : s2CellIds) {
-                relevantBlocks.retainAll(geoMap.getOrDefault(s2CellId, Constants.EMPTY_LIST_REPLICA));
+            if (request.hasBoundingBox()) {
+                if (flag) {
+                    Set<BlockReplicaInfo> geoBlocks = new HashSet<>();
+                    for (S2CellId s2CellId : s2CellIds) {
+                        geoBlocks.addAll(geoMap.getOrDefault(s2CellId, Constants.EMPTY_LIST_REPLICA));
+                    }
+                    relevantBlocks.retainAll(geoBlocks);
+                }
+                else {
+                    flag = true;
+                    for (S2CellId s2CellId : s2CellIds) {
+                        relevantBlocks.addAll(geoMap.getOrDefault(s2CellId, Constants.EMPTY_LIST_REPLICA));
+                    }
+                }
             }
             for (Map.Entry<String, String> predicate : request.getMetadataMapMap().entrySet()) {
                 relevantBlocks.retainAll(metaMap.getOrDefault(predicate.getKey(), Constants.EMPTY_MAP_STRING_LIST_REPLICA).getOrDefault(predicate.getValue(), Constants.EMPTY_LIST_REPLICA));
             }
         }
         findBlockResponseBuilder.addAllBlockIdReplicasMetadata(
-                relevantBlocks.stream().map(BlockReplicaInfo::toMessage).collect(Collectors.toList()));
-        responseObserver.onNext(findBlockResponseBuilder.build());
+                relevantBlocks.stream().map(BlockReplicaInfo::toMessage).collect(Collectors.toSet()));
+        FindBlocksResponse findBlocksResponse = findBlockResponseBuilder.build();
+        LOGGER.info(LOGGER.getName() + relevantBlocks);
+        LOGGER.info(LOGGER.getName() + serverPort + "\n" + findBlocksResponse);
+        responseObserver.onNext(findBlocksResponse);
         responseObserver.onCompleted();
     }
 
     @Override
     public void execTSDBQueryLocal(TSDBQueryRequest request, StreamObserver<TSDBQueryResponse> responseObserver) {
+        LOGGER.info(LOGGER.getName() + String.format("Executing Query on %s:%d", serverIp, serverPort));
         TSDBQueryResponse.Builder responseBuilder = TSDBQueryResponse.newBuilder();
         InfluxDBClient influxDBClient = InfluxDBClientFactory.create(serverIp + "8086", token);
 
         QueryApi queryApi = influxDBClient.getQueryApi();
-        String response = queryApi.queryRaw(request.getFluxQuery());
+        String response = queryApi.queryRaw(request.getFluxQuery().toStringUtf8());
         influxDBClient.close();
         responseBuilder.setFluxQueryResponse(ByteString.copyFromUtf8(response));
         responseObserver.onNext(responseBuilder.build());
@@ -241,6 +280,17 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
             responseBuilder.setIsSuccess(false);
         }
         responseObserver.onNext(responseBuilder.build());
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void logIndexLocal(Empty request, StreamObserver<Response> responseObserver) {
+//        LOGGER.info(String.format("%sMetaMap: %s\n", LOGGER.getName(), metaMap.toString()));
+//        LOGGER.info(String.format("%sTimeMap: %s\n", LOGGER.getName(), timeMap.toString()));
+//        LOGGER.info(String.format("%sGeoMap: %s\n", LOGGER.getName(), geoMap.toString()));
+//        LOGGER.info(String.format("%sBlockIdMap: %s\n", LOGGER.getName(), blockIdMap.toString()));
+        LOGGER.info(String.format("%sBlocks Indexed: %d", LOGGER.getName(), blockIdMap.size()));
+        responseObserver.onNext(Response.newBuilder().setIsSuccess(true).build());
         responseObserver.onCompleted();
     }
 

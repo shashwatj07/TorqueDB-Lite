@@ -96,10 +96,32 @@ public final class Utils {
         return s2RegionCoverer.getCovering(s2LatLngRect).cellIds();
     }
 
+    public static boolean isNumeric(String str) {
+        if (str == null) {
+            return false;
+        }
+        try {
+            double d = Double.parseDouble(str);
+        } catch (NumberFormatException ex) {
+            return false;
+        }
+        return true;
+    }
+
     public static List<Instant> getTimeChunks(TimeRange timeRange, int chunkSizeSeconds) {
         final Instant exactStartInstant = getInstantFromTimestampMessage(timeRange.getStartTimestamp());
-        final Instant startInstant = Instant.ofEpochSecond(exactStartInstant.getEpochSecond() - ((exactStartInstant.getEpochSecond() - Instant.MIN.getEpochSecond()) % chunkSizeSeconds));
         final Instant endInstant = getInstantFromTimestampMessage(timeRange.getEndTimestamp());
+        return getTimeChunks(exactStartInstant, endInstant, chunkSizeSeconds);
+    }
+
+    public static List<Instant> getTimeChunks(String start, String end, int chunkSizeSeconds) {
+        final Instant exactStartInstant = getInstantFromString(start);
+        final Instant endInstant = getInstantFromString(end);
+        return getTimeChunks(exactStartInstant, endInstant, chunkSizeSeconds);
+    }
+
+    public static List<Instant> getTimeChunks(Instant exactStartInstant, Instant endInstant, int chunkSizeSeconds) {
+        final Instant startInstant = Instant.ofEpochSecond(exactStartInstant.getEpochSecond() - ((exactStartInstant.getEpochSecond() - Instant.MIN.getEpochSecond()) % chunkSizeSeconds));
         List<Instant> timeChunks = new ArrayList<>();
         for (Instant instant = startInstant; instant.isBefore(endInstant); instant = instant.plus(chunkSizeSeconds, ChronoUnit.SECONDS)) {
             timeChunks.add(instant);
