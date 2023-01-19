@@ -21,7 +21,7 @@ public final class InsertBlocks {
     }
 
     public static void main(String... args) throws IOException, InterruptedException {
-        final String edgeIp = Inet4Address.getLocalHost().getHostAddress();
+        final String edgeIp = System.getenv("device_ip");
         final int edgePort = Integer.parseInt(args[0]);
         final String blocksDirectory = args[1];
         final String metadataDirectory = args[2];

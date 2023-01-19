@@ -16,7 +16,7 @@ public class EdgeServer {
 
     public static void main(String... args) throws IOException, InterruptedException {
         final UUID edgeId = UUID.randomUUID();
-        final String edgeIp = Inet4Address.getByName("eth0").getHostAddress();
+        final String edgeIp = System.getenv("device_ip");
         System.out.println("Edge Server Starting on " + edgeIp);
         final int edgePort = Integer.parseInt(args[0]);
         final int heartbeatTtlSecs = Integer.parseInt(args[1]);
