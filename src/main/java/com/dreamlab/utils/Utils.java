@@ -161,9 +161,14 @@ public final class Utils {
         return new FogPartition(fogInfo, polygon);
     }
 
-    public static Map<UUID, FogInfo> readFogDetails(String fogsConfigFilePath) throws IOException {
+    public static Map<UUID, FogInfo> readFogDetails(String fogsConfigFilePath) {
         Map<UUID, FogInfo> fogDetails = new HashMap<>();
-        JSONArray jsonArray = new JSONArray(Files.readString(Paths.get(fogsConfigFilePath)));
+        JSONArray jsonArray = null;
+        try {
+            jsonArray = new JSONArray(Files.readString(Paths.get(fogsConfigFilePath)));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         for(Object obj : jsonArray) {
             JSONObject jsonObject = (JSONObject) obj;
             UUID fogId = UUID.fromString((String) jsonObject.get("id"));

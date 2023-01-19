@@ -19,16 +19,20 @@ public class LocationHandler implements Runnable {
 
     private final int ttlSecs;
 
-    private final BufferedReader locationReader;
+    private BufferedReader locationReader = null;
 
     private final Logger LOGGER;
 
-    public LocationHandler(EdgeService edgeService, UUID edgeId, int ttlSecs, String trajectoryFilePath) throws FileNotFoundException {
+    public LocationHandler(EdgeService edgeService, UUID edgeId, int ttlSecs, String trajectoryFilePath) {
         LOGGER = Logger.getLogger(String.format("[Edge: %s] ", edgeId.toString()));
         this.edgeService = edgeService;
         this.ttlSecs = ttlSecs;
         this.edgeId = edgeId;
-        this.locationReader = new BufferedReader(new FileReader(trajectoryFilePath));
+        try {
+            this.locationReader = new BufferedReader(new FileReader(trajectoryFilePath));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     private void updateLocation() throws IOException {

@@ -42,7 +42,7 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
 
     private final Map<UUID, CoordinatorServerGrpc.CoordinatorServerBlockingStub> coordinatorStubs;
 
-    public EdgeService(UUID id, String ip, int port, int heartbeatTtlSecs, String fogsConfigFilePath, String trajectoryFilePath) throws IOException {
+    public EdgeService(UUID id, String ip, int port, int heartbeatTtlSecs, String fogsConfigFilePath, String trajectoryFilePath) {
         this.id  = id;
         this.ip = ip;
         this.port = port;

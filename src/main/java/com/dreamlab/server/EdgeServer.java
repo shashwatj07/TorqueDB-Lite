@@ -5,8 +5,6 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 
 import java.io.IOException;
-import java.net.Inet4Address;
-import java.net.NetworkInterface;
 import java.util.UUID;
 
 public class EdgeServer {
@@ -14,7 +12,7 @@ public class EdgeServer {
     private EdgeServer() {
     }
 
-    public static void main(String... args) throws IOException, InterruptedException {
+    public static void main(String... args) {
         final UUID edgeId = UUID.randomUUID();
         final String edgeIp = System.getenv("device_ip");
         System.out.println("Edge Server Starting on " + edgeIp);
@@ -35,6 +33,10 @@ public class EdgeServer {
         }
         System.out.println("Edge Server started at " + server.getPort());
         System.out.println("Edge Server Id is " + edgeId);
-        server.awaitTermination();
+        try {
+            server.awaitTermination();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }

@@ -20,7 +20,7 @@ public final class InsertBlocks {
     private InsertBlocks() {
     }
 
-    public static void main(String... args) throws IOException, InterruptedException {
+    public static void main(String... args) {
         final String edgeIp = System.getenv("device_ip");
         System.out.println("Inserting blocks on " + edgeIp);
         final int edgePort = Integer.parseInt(args[0]);
@@ -41,22 +41,22 @@ public final class InsertBlocks {
         for (int i = 0; i < blocks.size(); i++) {
             String blockFilePath = blocks.get(i);
             String blockId = new File(blockFilePath).getName().substring(5, 41);
-            PutBlockAndMetadataRequest putBlockAndMetadataRequest = PutBlockAndMetadataRequest
-                    .newBuilder()
-                    .setBlockContent(Utils.getBytes(blockFilePath))
-                    .setMetadataContent(Utils.getBytes(metadata.get(i)))
-                    .setBlockId(Utils.getMessageFromUUID(UUID.fromString(blockId)))
-                    .build();
             try {
+                PutBlockAndMetadataRequest putBlockAndMetadataRequest = PutBlockAndMetadataRequest
+                        .newBuilder()
+                        .setBlockContent(Utils.getBytes(blockFilePath))
+                        .setMetadataContent(Utils.getBytes(metadata.get(i)))
+                        .setBlockId(Utils.getMessageFromUUID(UUID.fromString(blockId)))
+                        .build();
                 BlockIdResponse blockIdResponse = edgeServerBlockingStub
                         .putBlockAndMetadata(putBlockAndMetadataRequest);
                 System.out.println("Success: " + Utils.getUuidFromMessage(blockIdResponse.getBlockId()));
+                Thread.sleep(interval * 1000L);
             }
             catch (Exception ex) {
                 System.out.println("Failed to insert block");
                 ex.printStackTrace();
             }
-            Thread.sleep(interval * 1000L);
         }
         managedChannel.shutdown();
     }

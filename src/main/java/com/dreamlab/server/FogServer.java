@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public class FogServer {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         final String fogsConfigFilePath = args[0];
         Map<UUID, FogInfo> fogDetails = Utils.readFogDetails(fogsConfigFilePath);
         final String ip = System.getenv("device_ip");
