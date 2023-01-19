@@ -39,20 +39,25 @@ public class DataMigrationClient {
             String qClass = "Non-join";
 
 
-                qu1.addBucketName("temp"); // Influx
-                qu1.addRange("2022-10-28 23-33-35", "2022-10-28 23-33-55");
+                qu1.addBucketName("bucket"); // Influx
+                qu1.addRange("2022-10-28 23-33-35", "2024-10-28 23-33-55");
+                qu1.addRegion("13.0188576", "13.0213035", "77.4809204", "77.4818086");
+//                "min_lat": 13.0188576,
+//                "max_lat": 13.0213035,
+//                "min_lon": 77.4809204,
+//                "max_lon": 77.4818086,
                 // First in filter is measurement, second is tag list, third is field list
-                qu1.addFilter("SF", Arrays.asList("city==San_Francisco"),
-                        Arrays.asList("temperature<1000"));
+                qu1.addFilter("pollution", Arrays.asList("application==traffic"),
+                        Arrays.asList("aqi<1000"));
                 qu1.addKeep(Arrays.asList("_value", "_time")); // Influx
 //            qu1.addJoin(Arrays.asList("shard", "_time"), JoinType.INNER);
                 qu1.addOptionalParameters(model, cache, queryPolicy);
 
-                qu2.addBucketName("temp"); // Influx
+                qu2.addBucketName("bucket"); // Influx
                 qu2.addRange("2022-10-28 23-33-35", "2022-10-28 23-33-36");
                 // First in filter is measurement, second is tag list, third is field list
 //            qu2.addFilter("SF", Arrays.asList("city==San_Francisco"), Arrays.asList("temperature<1000"));
-                qu2.addFilter("BL", Arrays.asList("city==Bangalore"), Arrays.asList("temperature<1000"));
+                qu2.addFilter("BL", Arrays.asList("application==traffic"), Arrays.asList("aqi>0"));
                 qu2.addKeep(Arrays.asList("_value", "_time")); // InfluxDB
                 qu2.addJoin(Arrays.asList("shard", "_time"), JoinType.INNER);
                 qu2.addOptionalParameters(model, cache, queryPolicy);
@@ -100,7 +105,7 @@ public class DataMigrationClient {
                 }
 
                 managedChannel.shutdown();
-                System.out.println(answer);
+                LOGGER.info(answer.getFluxQueryResponse().toStringUtf8());
             } catch (Exception x) {
                 x.printStackTrace();
             }

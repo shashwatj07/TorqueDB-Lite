@@ -8,6 +8,7 @@ import com.dreamlab.constants.Operation;
 
 public class TagCondition implements Condition, Cloneable, Serializable {
 
+    private static final long serialVersionUID = 3033105705559224224L;
     private static Logger LOGGER;
     public String operand1 = "nan";
     public Operation operation;

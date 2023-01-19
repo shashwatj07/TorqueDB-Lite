@@ -7,7 +7,9 @@ import com.dreamlab.utils.Utils;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.UUID;
 
 public final class InsertBlock {
     private InsertBlock() {
@@ -18,7 +20,8 @@ public final class InsertBlock {
         final int edgePort = Integer.parseInt(args[1]);
         final String blockFilePath = args[2];
         final String metadataFilePath = args[3];
-
+        String blockId = new File(blockFilePath).getName().substring(5, 41);
+        System.out.println(blockId);
         ManagedChannel managedChannel = ManagedChannelBuilder
                 .forAddress(edgeIp, edgePort)
                 .usePlaintext()
@@ -28,6 +31,7 @@ public final class InsertBlock {
                 .newBuilder()
                 .setBlockContent(Utils.getBytes(blockFilePath))
                 .setMetadataContent(Utils.getBytes(metadataFilePath))
+                .setBlockId(Utils.getMessageFromUUID(UUID.fromString(blockId)))
                 .build();
         BlockIdResponse blockIdResponse = edgeServerBlockingStub
                 .putBlockAndMetadata(putBlockAndMetadataRequest);

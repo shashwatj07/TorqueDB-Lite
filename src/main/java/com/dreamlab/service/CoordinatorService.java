@@ -28,6 +28,7 @@ import com.dreamlab.types.FogPartition;
 import com.dreamlab.utils.CostModel;
 import com.dreamlab.utils.QueryDecomposition;
 import com.dreamlab.utils.Utils;
+import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -39,6 +40,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.triangulate.VoronoiDiagramBuilder;
 
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -103,7 +105,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
 
     @Override
     public void execTSDBQuery(TSDBQueryRequest request, StreamObserver<TSDBQueryResponse> responseObserver) {
-        TSDBQueryResponse tsdbQueryResponse = TSDBQueryResponse.newBuilder().build();
+        TSDBQueryResponse.Builder tsdbQueryResponseBuilder = TSDBQueryResponse.newBuilder();
         //TODO
         /*
         1. Extract Predicates - time range, spatial bounding box, blockId
@@ -179,10 +181,15 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         }
         QueryDecomposition queryDecomposition = new QueryDecomposition();
         CostModelOutput costModelOutput = queryDecomposition.l21decompose(fogQueries, plan);
-        System.out.println("L1: "+costModelOutput.Level1Query);
-        System.out.println("L2: "+costModelOutput.perFogLevel2Query);
-
-        responseObserver.onNext(tsdbQueryResponse);
+        System.out.println("L2: " + costModelOutput.perFogLevel2Query);
+        StringBuffer responseBuffer = new StringBuffer();
+        for (Map.Entry<UUID, String> entry : costModelOutput.perFogLevel2Query.entrySet()) {
+            TSDBQueryResponse response = execTSDBQueryOnDataStoreFog(entry.getKey(),
+                    TSDBQueryRequest.newBuilder().setFluxQuery(ByteString.copyFromUtf8(entry.getValue())).build());
+            responseBuffer.append(response.getFluxQueryResponse().toStringUtf8());
+        }
+        tsdbQueryResponseBuilder.setFluxQueryResponse(ByteString.copyFromUtf8(responseBuffer.toString()));
+        responseObserver.onNext(tsdbQueryResponseBuilder.build());
         responseObserver.onCompleted();
     }
 
@@ -210,10 +217,10 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             JSONObject jsonObject =  new JSONObject(jsonFile);
             Instant startInstant = Utils.getInstantFromString(jsonObject.getString(Keys.KEY_START_TIMESTAMP));
             Instant endInstant = Utils.getInstantFromString(jsonObject.getString(Keys.KEY_END_TIMESTAMP));
-            double minLatitude = Double.parseDouble(jsonObject.getString(Keys.KEY_MIN_LATITUDE));
-            double minLongitude = Double.parseDouble(jsonObject.getString(Keys.KEY_MIN_LONGITUDE));
-            double maxLatitude = Double.parseDouble(jsonObject.getString(Keys.KEY_MAX_LATITUDE));
-            double maxLongitude = Double.parseDouble(jsonObject.getString(Keys.KEY_MAX_LONGITUDE));
+            double minLatitude = jsonObject.getDouble(Keys.KEY_MIN_LATITUDE);
+            double minLongitude = jsonObject.getDouble(Keys.KEY_MIN_LONGITUDE);
+            double maxLatitude = jsonObject.getDouble(Keys.KEY_MAX_LATITUDE);
+            double maxLongitude = jsonObject.getDouble(Keys.KEY_MAX_LONGITUDE);
             boundingBoxPolygon = Utils.createPolygon(minLatitude, maxLatitude, minLongitude, maxLongitude);
             timeRangeBuilder
                     .setStartTimestamp(Utils.getTimestampMessageFromInstant(startInstant))
@@ -258,10 +265,10 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             JSONObject jsonObject =  new JSONObject(jsonFile);
             Instant startInstant = Utils.getInstantFromString(jsonObject.getString(Keys.KEY_START_TIMESTAMP));
             Instant endInstant = Utils.getInstantFromString(jsonObject.getString(Keys.KEY_END_TIMESTAMP));
-            double minLatitude = Double.parseDouble(jsonObject.getString(Keys.KEY_MIN_LATITUDE));
-            double minLongitude = Double.parseDouble(jsonObject.getString(Keys.KEY_MIN_LONGITUDE));
-            double maxLatitude = Double.parseDouble(jsonObject.getString(Keys.KEY_MAX_LATITUDE));
-            double maxLongitude = Double.parseDouble(jsonObject.getString(Keys.KEY_MAX_LONGITUDE));
+            double minLatitude = jsonObject.getDouble(Keys.KEY_MIN_LATITUDE);
+            double minLongitude = jsonObject.getDouble(Keys.KEY_MIN_LONGITUDE);
+            double maxLatitude = jsonObject.getDouble(Keys.KEY_MAX_LATITUDE);
+            double maxLongitude = jsonObject.getDouble(Keys.KEY_MAX_LONGITUDE);
             boundingBoxPolygon = Utils.createPolygon(minLatitude, maxLatitude, minLongitude, maxLongitude);
             jsonObject.remove(Keys.KEY_START_TIMESTAMP);
             jsonObject.remove(Keys.KEY_END_TIMESTAMP);
@@ -313,6 +320,11 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         Response response = Response.newBuilder().setIsSuccess(true).build();
         responseObserver.onNext(response);
         responseObserver.onCompleted();
+    }
+
+    private TSDBQueryResponse execTSDBQueryOnDataStoreFog(UUID dataStoreFogId, TSDBQueryRequest tsdbQueryRequest) {
+        TSDBQueryResponse response = getDataStub(dataStoreFogId).execTSDBQueryLocal(tsdbQueryRequest);
+        return response;
     }
 
     private void sendMetadataToDataStoreFog(UUID dataStoreFogId, IndexMetadataRequest indexMetadataRequest) {

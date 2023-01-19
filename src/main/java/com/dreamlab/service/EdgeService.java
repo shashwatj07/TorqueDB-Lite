@@ -59,7 +59,7 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
 
     @Override
     public void putBlockAndMetadata(PutBlockAndMetadataRequest request, StreamObserver<BlockIdResponse> responseObserver) {
-        UUIDMessage blockId = Utils.getMessageFromUUID(UUID.randomUUID());
+        UUIDMessage blockId = request.getBlockId();
         PutBlockRequest.Builder putBlockRequestBuilder = PutBlockRequest.newBuilder();
         putBlockRequestBuilder.setBlockId(blockId);
         putBlockRequestBuilder.setBlockContent(request.getBlockContent());

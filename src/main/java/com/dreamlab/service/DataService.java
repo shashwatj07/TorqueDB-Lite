@@ -21,6 +21,8 @@ import com.google.protobuf.Empty;
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.InfluxDBClientFactory;
 import com.influxdb.client.QueryApi;
+import com.influxdb.client.WriteApiBlocking;
+import com.influxdb.client.domain.WritePrecision;
 import io.grpc.stub.StreamObserver;
 
 import java.io.File;
@@ -49,6 +51,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
     private final ConcurrentMap<Instant, ConcurrentLinkedQueue<BlockReplicaInfo>> timeMap;
     private final ConcurrentMap<S2CellId, ConcurrentLinkedQueue<BlockReplicaInfo>> geoMap;
     private final ConcurrentMap<UUID, BlockReplicaInfo> blockIdMap;
+    private final InfluxDBClient influxDBClient;
     private final UUID fogId;
     private final String serverIp;
     private final int serverPort;
@@ -60,6 +63,8 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         this.fogId = fogId;
         this.serverIp = serverIP;
         this.serverPort = serverPort;
+        this.token = token.toCharArray();
+        influxDBClient = InfluxDBClientFactory.create("http://"+this.serverIp + ":8086", this.token);
         ConcurrentMap<String, ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>>> metaMapLocal;
         try {
             Object map = Utils.readObjectFromFile(String.format("%s/%s/metaMap", BACKUP_DIR_PATH, fogId));
@@ -95,8 +100,6 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
             blockIdMapLocal = new ConcurrentHashMap<>();
         }
         blockIdMap = blockIdMapLocal;
-
-        this.token = token.toCharArray();
 
     }
 
@@ -136,17 +139,12 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
     public void storeBlockLocal(StoreBlockRequest request, StreamObserver<Response> responseObserver) {
         LOGGER.info(LOGGER.getName() + String.format("Storing Block on %s:%d", serverIp, serverPort));
         Response.Builder responseBuilder = Response.newBuilder();
-        File fogStoreDir = new File(String.format("store/%s", fogId));
-        fogStoreDir.mkdirs();
-        File contentsFile = new File(String.format("store/%s/%s.bin", fogId, Utils.getUuidFromMessage(request.getBlockId())));
-        try (PrintWriter contentsFileWriter = new PrintWriter(contentsFile, StandardCharsets.UTF_8)) {
-            contentsFileWriter.println(request.getBlockContent().toStringUtf8());
-            contentsFileWriter.close();
-            responseBuilder.setIsSuccess(true);
-        } catch (IOException e) {
-            e.printStackTrace();
-            responseBuilder.setIsSuccess(false);
-        }
+        String bucket = "bucket";
+        String org = "org";
+        InfluxDBClient client = InfluxDBClientFactory.create("http://localhost:8086", token);
+        WriteApiBlocking writeApi = client.getWriteApiBlocking();
+        writeApi.writeRecord(bucket, org, WritePrecision.MS, request.getBlockContent().toStringUtf8());
+        client.close();
         responseObserver.onNext(responseBuilder.build());
         responseObserver.onCompleted();
     }
@@ -239,11 +237,9 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
     public void execTSDBQueryLocal(TSDBQueryRequest request, StreamObserver<TSDBQueryResponse> responseObserver) {
         LOGGER.info(LOGGER.getName() + String.format("Executing Query on %s:%d", serverIp, serverPort));
         TSDBQueryResponse.Builder responseBuilder = TSDBQueryResponse.newBuilder();
-        InfluxDBClient influxDBClient = InfluxDBClientFactory.create(serverIp + "8086", token);
-
         QueryApi queryApi = influxDBClient.getQueryApi();
-        String response = queryApi.queryRaw(request.getFluxQuery().toStringUtf8());
-        influxDBClient.close();
+        String response = queryApi.queryRaw(request.getFluxQuery().toStringUtf8(), "org");
+        LOGGER.info(LOGGER.getName() + "InfluxDB Response " + response);
         responseBuilder.setFluxQueryResponse(ByteString.copyFromUtf8(response));
         responseObserver.onNext(responseBuilder.build());
         responseObserver.onCompleted();

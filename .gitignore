@@ -17,4 +17,6 @@ target/
 
 # TorqueDB Lite
 store/
+backup/
+data/
 */generated/

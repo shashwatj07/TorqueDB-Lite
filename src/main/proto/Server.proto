@@ -164,6 +164,7 @@ message BlockIdResponse {
 message PutBlockAndMetadataRequest {
   bytes blockContent = 1;
   bytes metadataContent = 2;
+  UUIDMessage blockId = 3;
 }
 
 message HeartbeatRequest {
