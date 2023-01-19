@@ -18,7 +18,8 @@ public class FogServer {
     public static void main(String[] args) throws IOException {
         final String fogsConfigFilePath = args[0];
         Map<UUID, FogInfo> fogDetails = Utils.readFogDetails(fogsConfigFilePath);
-        final String ip = Inet4Address.getLocalHost().getHostAddress();
+        final String ip = Inet4Address.getByName("eth0").getHostAddress();
+        System.out.println("Fog Server Starting on " + ip);
         UUID fogId = null;
         for (Map.Entry<UUID, FogInfo> entry : fogDetails.entrySet()) {
             if (entry.getValue().getDeviceIP().equals(ip)) {

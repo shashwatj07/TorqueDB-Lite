@@ -6,6 +6,7 @@ import io.grpc.ServerBuilder;
 
 import java.io.IOException;
 import java.net.Inet4Address;
+import java.net.NetworkInterface;
 import java.util.UUID;
 
 public class EdgeServer {
@@ -15,7 +16,8 @@ public class EdgeServer {
 
     public static void main(String... args) throws IOException, InterruptedException {
         final UUID edgeId = UUID.randomUUID();
-        final String edgeIp = Inet4Address.getLocalHost().getHostAddress();
+        final String edgeIp = Inet4Address.getByName("eth0").getHostAddress();
+        System.out.println("Edge Server Starting on " + edgeIp);
         final int edgePort = Integer.parseInt(args[0]);
         final int heartbeatTtlSecs = Integer.parseInt(args[1]);
         final String fogsConfigFilePath = args[2];
