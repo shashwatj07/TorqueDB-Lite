@@ -26,7 +26,13 @@ public class EdgeServer {
                 .forPort(edgePort)
                 .addService(new EdgeService(edgeId, edgeIp, edgePort, heartbeatTtlSecs, fogsConfigFilePath, trajectoryFilePath))
                 .build();
-        server.start();
+        try {
+            server.start();
+        }
+        catch (IOException ex) {
+            System.out.println("Server could not be started");
+            ex.printStackTrace();
+        }
         System.out.println("Edge Server started at " + server.getPort());
         System.out.println("Edge Server Id is " + edgeId);
         server.awaitTermination();

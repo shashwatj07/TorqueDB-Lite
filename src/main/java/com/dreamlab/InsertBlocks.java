@@ -22,6 +22,7 @@ public final class InsertBlocks {
 
     public static void main(String... args) throws IOException, InterruptedException {
         final String edgeIp = System.getenv("device_ip");
+        System.out.println("Inserting blocks on " + edgeIp);
         final int edgePort = Integer.parseInt(args[0]);
         final String blocksDirectory = args[1];
         final String metadataDirectory = args[2];
@@ -46,11 +47,16 @@ public final class InsertBlocks {
                     .setMetadataContent(Utils.getBytes(metadata.get(i)))
                     .setBlockId(Utils.getMessageFromUUID(UUID.fromString(blockId)))
                     .build();
-            BlockIdResponse blockIdResponse = edgeServerBlockingStub
-                    .putBlockAndMetadata(putBlockAndMetadataRequest);
-
-            System.out.println("Success: " + Utils.getUuidFromMessage(blockIdResponse.getBlockId()));
-            Thread.sleep(interval * 1000);
+            try {
+                BlockIdResponse blockIdResponse = edgeServerBlockingStub
+                        .putBlockAndMetadata(putBlockAndMetadataRequest);
+                System.out.println("Success: " + Utils.getUuidFromMessage(blockIdResponse.getBlockId()));
+            }
+            catch (Exception ex) {
+                System.out.println("Failed to insert block");
+                ex.printStackTrace();
+            }
+            Thread.sleep(interval * 1000L);
         }
         managedChannel.shutdown();
     }
