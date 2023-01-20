@@ -14,6 +14,8 @@ public final class Constants {
     public static final String DATE_TIME_PATTERN = "uuuu-MM-dd HH-mm-ss";
     public static final String ZONE_ID = "Z";
 
+    public static final int N_THREADS = 16;
+
     public static final ConcurrentLinkedQueue<BlockReplicaInfo> EMPTY_LIST_REPLICA = new ConcurrentLinkedQueue<>();
 
     public static final ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>> EMPTY_MAP_STRING_LIST_REPLICA = new ConcurrentHashMap<>();

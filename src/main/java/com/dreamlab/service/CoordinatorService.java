@@ -52,6 +52,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -88,17 +92,45 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         if (request.hasBoundingBox()) {
             fogIds.addAll(getSpatialShortlist(request.getBoundingBox()));
         }
-        Set<BlockIdReplicaMetadata> responseSet = new HashSet<>();
-        FindBlocksResponse.Builder builder = FindBlocksResponse.newBuilder();
-        for (UUID fogId : fogIds) {
-            final long t1 = System.currentTimeMillis();
-            FindBlocksResponse findBlocksResponseLocal = getDataStub(fogId).findBlocksLocal(request);
-            final long t2 = System.currentTimeMillis();
-            LOGGER.info(String.format("%s[Outer] CoordinatorServer.findBlocksLocal: %d", LOGGER.getName(), (t2 - t1)));
-            LOGGER.info("findBlocksResponseLocal " + findBlocksResponseLocal);
-            responseSet.addAll(findBlocksResponseLocal.getBlockIdReplicasMetadataList());
-            LOGGER.info(responseSet.toString());
+
+        List<Future<FindBlocksResponse>> futures = new ArrayList<>();
+        final long t1 = System.currentTimeMillis();
+        try {
+            ExecutorService executorService = Executors.newFixedThreadPool(Constants.N_THREADS);
+            fogIds.forEach(fogId -> futures.add(executorService.submit(() -> getDataStub(fogId).findBlocksLocal(request))));
+            executorService.shutdown();
+            executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
+        final long t2 = System.currentTimeMillis();
+        LOGGER.info(String.format("%s[Outer] CoordinatorServer.forEach.findBlocksLocal: %d", LOGGER.getName(), (t2 - t1)));
+
+        HashSet<BlockIdReplicaMetadata> responseSet = new HashSet<>();
+        for (Future<FindBlocksResponse> future : futures) {
+            try {
+                FindBlocksResponse findBlocksResponse = future.get();
+                responseSet.addAll(findBlocksResponse.getBlockIdReplicasMetadataList());
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+
+        }
+
+//        Set<BlockIdReplicaMetadata> responseSet = new HashSet<>();
+        FindBlocksResponse.Builder builder = FindBlocksResponse.newBuilder();
+//        for (UUID fogId : fogIds) {
+//            final long t1 = System.currentTimeMillis();
+//            FindBlocksResponse findBlocksResponseLocal = getDataStub(fogId).findBlocksLocal(request);
+//
+//            final long t2 = System.currentTimeMillis();
+//            LOGGER.info(String.format("%s[Outer] CoordinatorServer.findBlocksLocal: %d", LOGGER.getName(), (t2 - t1)));
+//            LOGGER.info("findBlocksResponseLocal " + findBlocksResponseLocal);
+//            responseSet.addAll(findBlocksResponseLocal.getBlockIdReplicasMetadataList());
+//            LOGGER.info(responseSet.toString());
+//        }
         builder.addAllBlockIdReplicasMetadata(responseSet);
         FindBlocksResponse findBlocksResponse = builder.build();
         final long end = System.currentTimeMillis();
@@ -167,13 +199,31 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         }
         FindBlocksRequest findBlocksRequest = findBlocksRequestBuilder.build();
 
+        List<Future<FindBlocksResponse>> futures = new ArrayList<>();
+        final long t1 = System.currentTimeMillis();
+        try {
+            ExecutorService executorService = Executors.newFixedThreadPool(Constants.N_THREADS);
+            fogIds.forEach(fogId -> futures.add(executorService.submit(() -> getDataStub(fogId).findBlocksLocal(findBlocksRequest))));
+            executorService.shutdown();
+            executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        final long t2 = System.currentTimeMillis();
+        LOGGER.info(String.format("%s[Outer] CoordinatorServer.forEach.findBlocksLocal: %d", LOGGER.getName(), (t2 - t1)));
+
+
         HashSet<BlockIdReplicaMetadata> responseSet = new HashSet<>();
-        for (UUID fogId : fogIds) {
-            final long t1 = System.currentTimeMillis();
-            FindBlocksResponse findBlocksResponse = getDataStub(fogId).findBlocksLocal(findBlocksRequest);
-            final long t2 = System.currentTimeMillis();
-            LOGGER.info(String.format("%s[Outer] CoordinatorServer.findBlocksLocal: %d", LOGGER.getName(), (t2 - t1)));
-            responseSet.addAll(findBlocksResponse.getBlockIdReplicasMetadataList());
+        for (Future<FindBlocksResponse> future : futures) {
+            try {
+                FindBlocksResponse findBlocksResponse = future.get();
+                responseSet.addAll(findBlocksResponse.getBlockIdReplicasMetadataList());
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+
         }
         LOGGER.info(String.valueOf(responseSet.size()));
         /*
@@ -266,7 +316,19 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         Set<UUID> blockReplicaFogIds = getFogsToReplicate(Utils.getUuidFromMessage(request.getBlockId()), spatialShortlist, temporalShortlist, randomReplica);
         LOGGER.info(LOGGER.getName() + "Replica Fogs " + blockReplicaFogIds);
         StoreBlockRequest storeBlockRequest = storeBlockRequestBuilder.build();
-        blockReplicaFogIds.forEach(replicaFogId -> sendBlockToDataStoreFog(replicaFogId, storeBlockRequest));
+        final long t1 = System.currentTimeMillis();
+        try {
+            ExecutorService executorService = Executors.newFixedThreadPool(Constants.N_THREADS);
+            blockReplicaFogIds.forEach(replicaFogId -> {
+                executorService.submit(() -> sendBlockToDataStoreFog(replicaFogId, storeBlockRequest));
+            });
+            executorService.shutdown();
+            executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        final long t2 = System.currentTimeMillis();
+        LOGGER.info(String.format("%s[Outer] CoordinatorServer.forEach.sendBlockToDataStoreFog: %d", LOGGER.getName(), (t2 - t1)));
         Response response = Response.newBuilder().setIsSuccess(true).build();
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Inner] CoordinatorServer.putBlockByMetadata: %d", LOGGER.getName(), (end - start)));
@@ -337,7 +399,19 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         metadataReplicaFogIds.addAll(temporalShortlist);
         metadataReplicaFogIds.addAll(blockReplicaFogIds);
         IndexMetadataRequest indexMetadataRequest = indexMetadataRequestBuilder.build();
-        metadataReplicaFogIds.forEach(replicaFogId -> sendMetadataToDataStoreFog(replicaFogId, indexMetadataRequest));
+        final long t1 = System.currentTimeMillis();
+        try {
+            ExecutorService executorService = Executors.newFixedThreadPool(Constants.N_THREADS);
+            metadataReplicaFogIds.forEach(replicaFogId -> {
+                executorService.submit(() -> sendMetadataToDataStoreFog(replicaFogId, indexMetadataRequest));
+            });
+            executorService.shutdown();
+            executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        final long t2 = System.currentTimeMillis();
+        LOGGER.info(String.format("%s[Outer] CoordinatorServer.forEach.sendMetadataToDataStoreFog: %d", LOGGER.getName(), (t2 - t1)));
         Response response = Response.newBuilder().setIsSuccess(true).build();
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%sCoordinatorServer.randomReplica(%s): %s", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), randomReplica));
