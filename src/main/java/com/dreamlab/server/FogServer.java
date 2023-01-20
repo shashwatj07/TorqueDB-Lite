@@ -10,7 +10,6 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 
 import java.io.IOException;
-import java.net.Inet4Address;
 import java.util.Map;
 import java.util.UUID;
 
@@ -36,7 +35,7 @@ public class FogServer {
             server = ServerBuilder
                     .forPort(fogInfo.getDevicePort())
                     .addService(new ParentService(fogInfo.getDeviceId(), fogDetails))
-                    .addService(new MembershipService(fogDetails))
+                    .addService(new MembershipService(fogInfo.getDeviceId(), fogDetails))
                     .addService(new DataService(fogInfo.getDeviceIP(), fogInfo.getDevicePort(), fogInfo.getDeviceId(), fogInfo.getToken()))
                     .addService(new CoordinatorService(fogInfo.getDeviceId(), fogDetails))
                     .build();

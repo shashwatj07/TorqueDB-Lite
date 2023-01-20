@@ -208,6 +208,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
 
     @Override
     public void putBlockByMetadata(PutBlockRequest request, StreamObserver<Response> responseObserver) {
+        final long start = System.currentTimeMillis();
         final StoreBlockRequest.Builder storeBlockRequestBuilder = StoreBlockRequest.newBuilder();
         final TimeRange.Builder timeRangeBuilder = TimeRange.newBuilder();
         final BoundingBox.Builder boundingBoxBuilder = BoundingBox.newBuilder();
@@ -241,7 +242,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         storeBlockRequestBuilder.setBlockId(request.getBlockId());
         storeBlockRequestBuilder.setBlockContent(request.getBlockContent());
         TimeRange timeRange = timeRangeBuilder.build();
-        BoundingBox boundingBox = boundingBoxBuilder.build();
+//        BoundingBox boundingBox = boundingBoxBuilder.build();
         List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
         List<UUID> temporalShortlist = getTemporalShortlist(timeRange);
         UUID randomReplica = getRandomFogToReplicate(Utils.getUuidFromMessage(request.getBlockId()));
@@ -250,12 +251,15 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         StoreBlockRequest storeBlockRequest = storeBlockRequestBuilder.build();
         blockReplicaFogIds.forEach(replicaFogId -> sendBlockToDataStoreFog(replicaFogId, storeBlockRequest));
         Response response = Response.newBuilder().setIsSuccess(true).build();
+        final long end = System.currentTimeMillis();
+        LOGGER.info(String.format("%s [Inner] CoordinatorServer.putBlockByMetadata: %d", LOGGER.getName(), (end - start)));
         responseObserver.onNext(response);
         responseObserver.onCompleted();
     }
 
     @Override
     public void putMetadata(PutMetadataRequest request, StreamObserver<Response> responseObserver) {
+        final long start = System.currentTimeMillis();
         final IndexMetadataRequest.Builder indexMetadataRequestBuilder = IndexMetadataRequest.newBuilder();
         final TimeRange.Builder timeRangeBuilder = TimeRange.newBuilder();
         final BoundingBox.Builder boundingBoxBuilder = BoundingBox.newBuilder();
@@ -318,6 +322,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         IndexMetadataRequest indexMetadataRequest = indexMetadataRequestBuilder.build();
         metadataReplicaFogIds.forEach(replicaFogId -> sendMetadataToDataStoreFog(replicaFogId, indexMetadataRequest));
         Response response = Response.newBuilder().setIsSuccess(true).build();
+        final long end = System.currentTimeMillis();
+        LOGGER.info(String.format("%s [Inner] CoordinatorServer.putMetadata: %d", LOGGER.getName(), (end - start)));
         responseObserver.onNext(response);
         responseObserver.onCompleted();
     }
@@ -328,11 +334,17 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     }
 
     private void sendMetadataToDataStoreFog(UUID dataStoreFogId, IndexMetadataRequest indexMetadataRequest) {
+        final long start = System.currentTimeMillis();
         Response response = getDataStub(dataStoreFogId).indexMetadataLocal(indexMetadataRequest);
+        final long end = System.currentTimeMillis();
+        LOGGER.info(String.format("%s [Outer] DataServer.indexMetadataLocal: %d", LOGGER.getName(), (end - start)));
     }
 
     private void sendBlockToDataStoreFog(UUID dataStoreFogId, StoreBlockRequest storeBlockRequest) {
+        final long start = System.currentTimeMillis();
         Response response = getDataStub(dataStoreFogId).storeBlockLocal(storeBlockRequest);
+        final long end = System.currentTimeMillis();
+        LOGGER.info(String.format("%s [Outer] DataServer.storeBlockLocal: %d", LOGGER.getName(), (end - start)));
     }
 
     private Map<UUID, FogPartition> generateFogPartitions(List<FogInfo> fogDevices) {

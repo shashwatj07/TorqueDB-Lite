@@ -29,8 +29,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -64,7 +62,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         this.serverIp = serverIP;
         this.serverPort = serverPort;
         this.token = token.toCharArray();
-        influxDBClient = InfluxDBClientFactory.create("http://"+this.serverIp + ":8086", this.token);
+        influxDBClient = InfluxDBClientFactory.create("http://localhost:8086", this.token);
         ConcurrentMap<String, ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>>> metaMapLocal;
         try {
             Object map = Utils.readObjectFromFile(String.format("%s/%s/metaMap", BACKUP_DIR_PATH, fogId));
@@ -106,6 +104,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
     @Override
     public void indexMetadataLocal(IndexMetadataRequest request, StreamObserver<Response> responseObserver) {
         LOGGER.info(LOGGER.getName() + String.format("Indexing Metadata on %s:%d", serverIp, serverPort));
+        final long start = System.currentTimeMillis();
         Response.Builder responseBuilder = Response.newBuilder();
         BlockReplicaInfo blockReplicaInfo = new BlockReplicaInfo(Utils.getUuidFromMessage(request.getBlockId()));
         request.getReplicasList()
@@ -131,6 +130,8 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
             e.printStackTrace();
             responseBuilder.setIsSuccess(false);
         }
+        final long end = System.currentTimeMillis();
+        LOGGER.info(String.format("%s [Inner] DataServer.indexMetadataLocal: %d", LOGGER.getName(), (end - start)));
         responseObserver.onNext(responseBuilder.build());
         responseObserver.onCompleted();
     }
@@ -138,13 +139,16 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
     @Override
     public void storeBlockLocal(StoreBlockRequest request, StreamObserver<Response> responseObserver) {
         LOGGER.info(LOGGER.getName() + String.format("Storing Block on %s:%d", serverIp, serverPort));
+        final long start = System.currentTimeMillis();
         Response.Builder responseBuilder = Response.newBuilder();
         String bucket = "bucket";
         String org = "org";
-        InfluxDBClient client = InfluxDBClientFactory.create("http://localhost:8086", token);
-        WriteApiBlocking writeApi = client.getWriteApiBlocking();
+//        InfluxDBClient client = InfluxDBClientFactory.create("http://localhost:8086", token);
+        WriteApiBlocking writeApi = influxDBClient.getWriteApiBlocking();
         writeApi.writeRecord(bucket, org, WritePrecision.MS, request.getBlockContent().toStringUtf8());
-        client.close();
+//        client.close();
+        final long end = System.currentTimeMillis();
+        LOGGER.info(String.format("%s [Inner] DataServer.storeBlockLocal: %d", LOGGER.getName(), (end - start)));
         responseObserver.onNext(responseBuilder.build());
         responseObserver.onCompleted();
     }

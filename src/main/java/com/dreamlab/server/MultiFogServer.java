@@ -34,7 +34,7 @@ public class MultiFogServer {
                 server = ServerBuilder
                     .forPort(fogInfo.getDevicePort())
                     .addService(new ParentService(fogInfo.getDeviceId(), fogDetails))
-                    .addService(new MembershipService(fogDetails))
+                    .addService(new MembershipService(fogInfo.getDeviceId(), fogDetails))
                     .addService(new DataService(fogInfo.getDeviceIP(), fogInfo.getDevicePort(), fogInfo.getDeviceId(), fogInfo.getToken()))
                     .addService(new CoordinatorService(fogInfo.getDeviceId(), fogDetails))
                     .build();

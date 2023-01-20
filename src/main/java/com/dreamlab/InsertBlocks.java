@@ -42,14 +42,18 @@ public final class InsertBlocks {
             String blockFilePath = blocks.get(i);
             String blockId = new File(blockFilePath).getName().substring(5, 41);
             try {
+                System.out.println("Inserting: " + blockId);
                 PutBlockAndMetadataRequest putBlockAndMetadataRequest = PutBlockAndMetadataRequest
                         .newBuilder()
                         .setBlockContent(Utils.getBytes(blockFilePath))
                         .setMetadataContent(Utils.getBytes(metadata.get(i)))
                         .setBlockId(Utils.getMessageFromUUID(UUID.fromString(blockId)))
                         .build();
+                final long start = System.currentTimeMillis();
                 BlockIdResponse blockIdResponse = edgeServerBlockingStub
                         .putBlockAndMetadata(putBlockAndMetadataRequest);
+                final long end = System.currentTimeMillis();
+                System.out.println("[Client] [Outer] EdgeServer.putBlockAndMetadata: " + (end - start));
                 System.out.println("Success: " + Utils.getUuidFromMessage(blockIdResponse.getBlockId()));
                 Thread.sleep(interval * 1000L);
             }

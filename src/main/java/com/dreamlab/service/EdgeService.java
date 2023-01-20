@@ -1,7 +1,5 @@
 package com.dreamlab.service;
 
-import com.dreamlab.utils.Heartbeat;
-import com.dreamlab.utils.LocationHandler;
 import com.dreamlab.edgefs.grpcServices.BlockIdResponse;
 import com.dreamlab.edgefs.grpcServices.CoordinatorServerGrpc;
 import com.dreamlab.edgefs.grpcServices.EdgeServerGrpc;
@@ -11,16 +9,18 @@ import com.dreamlab.edgefs.grpcServices.PutMetadataRequest;
 import com.dreamlab.edgefs.grpcServices.Response;
 import com.dreamlab.edgefs.grpcServices.UUIDMessage;
 import com.dreamlab.types.FogInfo;
+import com.dreamlab.utils.Heartbeat;
+import com.dreamlab.utils.LocationHandler;
 import com.dreamlab.utils.Utils;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
 
@@ -42,6 +42,8 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
 
     private final Map<UUID, CoordinatorServerGrpc.CoordinatorServerBlockingStub> coordinatorStubs;
 
+    private final Logger LOGGER;
+
     public EdgeService(UUID id, String ip, int port, int heartbeatTtlSecs, String fogsConfigFilePath, String trajectoryFilePath) {
         this.id  = id;
         this.ip = ip;
@@ -55,10 +57,12 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
         heartbeatThread = new Thread(heartbeat);
         heartbeatThread.start();
         coordinatorStubs = new HashMap<>();
+        LOGGER = Logger.getLogger(String.format("[Edge: %s] ", id));
     }
 
     @Override
     public void putBlockAndMetadata(PutBlockAndMetadataRequest request, StreamObserver<BlockIdResponse> responseObserver) {
+        final long startInner = System.currentTimeMillis();
         UUIDMessage blockId = request.getBlockId();
         PutBlockRequest.Builder putBlockRequestBuilder = PutBlockRequest.newBuilder();
         putBlockRequestBuilder.setBlockId(blockId);
@@ -72,12 +76,20 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
         final FogInfo parentFogInfo = Utils.getParentFog(fogDetails, getLatitude(), getLongitude());
 
         CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = getCoordinatorStub(parentFogInfo.getDeviceId());
+        final long t1 = System.currentTimeMillis();
         Response putBlockResponse = coordinatorServerBlockingStub.putBlockByMetadata(putBlockRequestBuilder.build());
+        final long t2 = System.currentTimeMillis();
+        LOGGER.info(String.format("%s [Outer] CoordinatorServer.putBlockByMetadata: %d", LOGGER.getName(), (t2 - t1)));
+        final long t3 = System.currentTimeMillis();
         Response putMetadataResponse = coordinatorServerBlockingStub.putMetadata(putMetadataRequestBuilder.build());
+        final long t4 = System.currentTimeMillis();
+        LOGGER.info(String.format("%s [Outer] CoordinatorServer.putMetadata: %d", LOGGER.getName(), (t4 - t3)));
         BlockIdResponse.Builder blockIdResponseBuilder = BlockIdResponse.newBuilder();
         blockIdResponseBuilder.setBlockId(blockId);
         blockIdResponseBuilder.setIsSuccess(putBlockResponse.getIsSuccess() && putMetadataResponse.getIsSuccess());
 
+        final long endInner = System.currentTimeMillis();
+        LOGGER.info(String.format("%s [Inner] EdgeServer.putBlockAndMetadata: %d", LOGGER.getName(), (endInner - startInner)));
         responseObserver.onNext(blockIdResponseBuilder.build());
         responseObserver.onCompleted();
     }

@@ -60,7 +60,10 @@ public class Heartbeat implements Runnable {
             try {
                 Thread.sleep(1000L * ttlSecs);
                 updateParentFog();
+                final long start = System.currentTimeMillis();
                 stubs.get(parentFogId).sendHeartbeat(heartbeatRequest);
+                final long end = System.currentTimeMillis();
+                LOGGER.info(String.format("%s [Outer] ParentServer.sendHeartbeat: %d", LOGGER.getName(), (end - start)));
                 LOGGER.info(String.format("%sCurrent Location (%f, %f)", LOGGER.getName(), edgeService.getLatitude(), edgeService.getLongitude()));
                 LOGGER.info(LOGGER.getName() + "Heartbeat Sent To: " + parentFogId);
             } catch (Exception e) {
