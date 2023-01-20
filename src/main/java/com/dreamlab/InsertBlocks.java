@@ -8,8 +8,6 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.Inet4Address;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -55,7 +53,8 @@ public final class InsertBlocks {
                 final long end = System.currentTimeMillis();
                 System.out.println("[Client] [Outer] EdgeServer.putBlockAndMetadata: " + (end - start));
                 System.out.println("Success: " + Utils.getUuidFromMessage(blockIdResponse.getBlockId()));
-                Thread.sleep(interval * 1000L);
+                final long sleepTime = interval * 1000L - start;
+                Thread.sleep(sleepTime >= 0? sleepTime : 0);
             }
             catch (Exception ex) {
                 System.out.println("Failed to insert block");

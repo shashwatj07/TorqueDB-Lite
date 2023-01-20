@@ -263,7 +263,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
         List<UUID> temporalShortlist = getTemporalShortlist(timeRange);
         UUID randomReplica = getRandomFogToReplicate(Utils.getUuidFromMessage(request.getBlockId()));
-        Set<UUID> blockReplicaFogIds = getFogsToReplicate(spatialShortlist, temporalShortlist, randomReplica);
+        Set<UUID> blockReplicaFogIds = getFogsToReplicate(Utils.getUuidFromMessage(request.getBlockId()), spatialShortlist, temporalShortlist, randomReplica);
         LOGGER.info(LOGGER.getName() + "Replica Fogs " + blockReplicaFogIds);
         StoreBlockRequest storeBlockRequest = storeBlockRequestBuilder.build();
         blockReplicaFogIds.forEach(replicaFogId -> sendBlockToDataStoreFog(replicaFogId, storeBlockRequest));
@@ -327,7 +327,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
         List<UUID> temporalShortlist = getTemporalShortlist(timeRange);
         UUID randomReplica = getRandomFogToReplicate(Utils.getUuidFromMessage(request.getBlockId()));
-        Set<UUID> blockReplicaFogIds = getFogsToReplicate(spatialShortlist, temporalShortlist, randomReplica);
+        Set<UUID> blockReplicaFogIds = getFogsToReplicate(Utils.getUuidFromMessage(request.getBlockId()), spatialShortlist, temporalShortlist, randomReplica);
 //        indexMetadataRequestBuilder.putMetadataMap(Keys.KEY_REPLICA_FOGS, blockReplicaFogIds.toString());
         indexMetadataRequestBuilder.addAllReplicas(blockReplicaFogIds.stream()
                 .map(blockReplicaFogId -> Utils.getMessageFromReplica(fogPartitions.get(blockReplicaFogId)))
@@ -340,6 +340,10 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         metadataReplicaFogIds.forEach(replicaFogId -> sendMetadataToDataStoreFog(replicaFogId, indexMetadataRequest));
         Response response = Response.newBuilder().setIsSuccess(true).build();
         final long end = System.currentTimeMillis();
+        LOGGER.info(String.format("%sCoordinatorServer.randomReplica(%s): %s", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), randomReplica));
+        LOGGER.info(String.format("%sCoordinatorServer.spatialShortlist(%s): %s", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), spatialShortlist));
+        LOGGER.info(String.format("%sCoordinatorServer.temporalShortlist(%s): %s", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), temporalShortlist));
+        LOGGER.info(String.format("%sCoordinatorServer.randomShortlist(%s): [%s]", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), randomReplica));
         LOGGER.info(String.format("%s[Inner] CoordinatorServer.putMetadata: %d", LOGGER.getName(), (end - start)));
         responseObserver.onNext(response);
         responseObserver.onCompleted();
@@ -446,7 +450,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         return temporalShortlist;
     }
 
-    private Set<UUID> getFogsToReplicate(List<UUID> spatialShortlist, List<UUID> temporalShortlist, UUID randomReplica) {
+    private Set<UUID> getFogsToReplicate(UUID blockId, List<UUID> spatialShortlist, List<UUID> temporalShortlist, UUID randomReplica) {
         Set<UUID> replicas = new HashSet<>(Set.of(randomReplica));
         o: for (UUID spatialReplica : spatialShortlist) {
             for (UUID temporalReplica : temporalShortlist) {
@@ -454,6 +458,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                         && !replicas.contains(temporalReplica)) {
                     replicas.add(spatialReplica);
                     replicas.add(temporalReplica);
+                    LOGGER.info(String.format("%sCoordinatorServer.spatialReplica(%s): %s", LOGGER.getName(), blockId, spatialReplica));
+                    LOGGER.info(String.format("%sCoordinatorServer.temporalReplica(%s): %s", LOGGER.getName(), blockId, temporalReplica));
                     break o;
                 }
             }
