@@ -44,7 +44,7 @@ public class MembershipService extends MembershipServerGrpc.MembershipServerImpl
         }
         responseBuilder.setIsSuccess(true);
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s [Inner] MembershipServer.setParentFog: %d", LOGGER.getName(), (end - start)));
+        LOGGER.info(String.format("%s[Inner] MembershipServer.setParentFog: %d", LOGGER.getName(), (end - start)));
         responseObserver.onNext(responseBuilder.build());
         responseObserver.onCompleted();
     }
@@ -68,7 +68,7 @@ public class MembershipService extends MembershipServerGrpc.MembershipServerImpl
             responseBuilder.setIsSuccess(false);
         }
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s [Inner] MembershipServer.getParentFog: %d", LOGGER.getName(), (end - start)));
+        LOGGER.info(String.format("%s[Inner] MembershipServer.getParentFog: %d", LOGGER.getName(), (end - start)));
         responseObserver.onNext(responseBuilder.build());
         responseObserver.onCompleted();
     }

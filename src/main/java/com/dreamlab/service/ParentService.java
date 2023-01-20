@@ -56,7 +56,7 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
         membershipFogIndices.forEach(index -> sendParentInfoToMembershipFog(fogIds.get(index), setParentFogRequest));
         Response response = Response.newBuilder().setIsSuccess(true).build();
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s [Inner] ParentServer.sendHeartbeat: %d", LOGGER.getName(), (end - start)));
+        LOGGER.info(String.format("%s[Inner] ParentServer.sendHeartbeat: %d", LOGGER.getName(), (end - start)));
         responseObserver.onNext(response);
         responseObserver.onCompleted();
     }
@@ -76,6 +76,6 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
         final long start = System.currentTimeMillis();
         Response response = membershipStubs.get(membershipFogId).setParentFog(setParentFogRequest);
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s [Outer] MembershipServer.setParentFog: %d", LOGGER.getName(), (end - start)));
+        LOGGER.info(String.format("%s[Outer] MembershipServer.setParentFog: %d", LOGGER.getName(), (end - start)));
     }
 }
