@@ -53,7 +53,7 @@ public final class InsertBlocks {
                 final long end = System.currentTimeMillis();
                 System.out.println("[Client] [Outer] EdgeServer.putBlockAndMetadata: " + (end - start));
                 System.out.println("Success: " + Utils.getUuidFromMessage(blockIdResponse.getBlockId()));
-                final long sleepTime = interval * 1000L - start;
+                final long sleepTime = interval * 1000L - (end - start);
                 Thread.sleep(sleepTime >= 0? sleepTime : 0);
             }
             catch (Exception ex) {

@@ -35,18 +35,21 @@ public class LocationHandler implements Runnable {
         }
     }
 
-    private void updateLocation() throws IOException {
+    private void updateLocation(int skip) throws IOException {
         String line = locationReader.readLine();
         StringTokenizer stringTokenizer = new StringTokenizer(line, ",");
         edgeService.setLatitude(Double.parseDouble(stringTokenizer.nextToken()));
         edgeService.setLongitude(Double.parseDouble(stringTokenizer.nextToken()));
+        for (int i = 0; i < skip; i++) {
+            locationReader.readLine();
+        }
     }
 
     @Override
     public void run() {
         while (true) {
             try {
-                updateLocation();
+                updateLocation(300 / ttlSecs - 1);
                 Thread.sleep(1000L * ttlSecs);
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, LOGGER.getName() + e.getMessage(), e);
