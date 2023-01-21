@@ -251,16 +251,24 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
 
     @Override
     public void execTSDBQueryLocal(TSDBQueryRequest request, StreamObserver<TSDBQueryResponse> responseObserver) {
-        LOGGER.info(LOGGER.getName() + String.format("Executing Query on %s:%d", serverIp, serverPort));
+        LOGGER.info(LOGGER.getName() + String.format("Executing Flux Query on ", fogId));
         final long start = System.currentTimeMillis();
+        String fluxQuery = request.getFluxQuery().toStringUtf8();
+        LOGGER.info(LOGGER.getName() + fluxQuery);
+
         TSDBQueryResponse.Builder responseBuilder = TSDBQueryResponse.newBuilder();
         final long t1 = System.currentTimeMillis();
-        QueryApi queryApi = influxDBClient.getQueryApi();
-        String response = queryApi.queryRaw(request.getFluxQuery().toStringUtf8(), "org");
-        final long t2 = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Outer] InfluxDB.queryRaw: %d", LOGGER.getName(), (t2 - t1)));
-        LOGGER.info(LOGGER.getName() + "InfluxDB Response " + response);
-        responseBuilder.setFluxQueryResponse(ByteString.copyFromUtf8(response));
+        try {
+            QueryApi queryApi = influxDBClient.getQueryApi();
+            String response = queryApi.queryRaw(fluxQuery, "org");
+            final long t2 = System.currentTimeMillis();
+            LOGGER.info(String.format("%s[Outer] InfluxDB.queryRaw: %d", LOGGER.getName(), (t2 - t1)));
+            LOGGER.info(LOGGER.getName() + "InfluxDB Response " + response);
+            responseBuilder.setFluxQueryResponse(ByteString.copyFromUtf8(response));
+        }
+        catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Inner] DataServer.execTSDBQueryLocal: %d", LOGGER.getName(), (end - start)));
         responseObserver.onNext(responseBuilder.build());
