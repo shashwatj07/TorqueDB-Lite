@@ -237,7 +237,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             }
         }
         LOGGER.info(String.format("%s[Count] CoordinatorServer.finalBlocks(%s): %d", LOGGER.getName(), influxDBQuery.getQueryId(), responseSet.size()));
-        LOGGER.info(String.format("%s[Count] CoordinatorServer.finalBlocks(%s): %s", LOGGER.getName(), influxDBQuery.getQueryId(), responseSet));
+//        LOGGER.info(String.format("%s[Count] CoordinatorServer.finalBlocks(%s): %s", LOGGER.getName(), influxDBQuery.getQueryId(), responseSet));
 
         /*
         1. Execute Cost model to assign blocks to fogs
@@ -277,7 +277,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             try {
                 responseBuffer.append(future.get().getFluxQueryResponse().toStringUtf8());
             } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException(e);
+//                throw new RuntimeException(e);
             }
         }
 

@@ -12,15 +12,19 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public final class InsertBlocks {
+
+    static final Logger LOGGER = Logger.getLogger("[Client] ");
+    
     private InsertBlocks() {
     }
 
     public static void main(String... args) {
         final String edgeIp = System.getenv("device_ip");
-        System.out.println("Inserting blocks on " + edgeIp);
+        LOGGER.info("Inserting blocks on " + edgeIp);
         final int edgePort = Integer.parseInt(args[0]);
         final String blocksDirectory = args[1];
         final String metadataDirectory = args[2];
@@ -40,7 +44,7 @@ public final class InsertBlocks {
             String blockFilePath = blocks.get(i);
             String blockId = new File(blockFilePath).getName().substring(5, 41);
             try {
-                System.out.println("Inserting: " + blockId);
+                LOGGER.info("Inserting: " + blockId);
                 PutBlockAndMetadataRequest putBlockAndMetadataRequest = PutBlockAndMetadataRequest
                         .newBuilder()
                         .setBlockContent(Utils.getBytes(blockFilePath))
@@ -51,13 +55,13 @@ public final class InsertBlocks {
                 BlockIdResponse blockIdResponse = edgeServerBlockingStub
                         .putBlockAndMetadata(putBlockAndMetadataRequest);
                 final long end = System.currentTimeMillis();
-                System.out.println("[Client] [Outer] EdgeServer.putBlockAndMetadata: " + (end - start));
-                System.out.println("Success: " + Utils.getUuidFromMessage(blockIdResponse.getBlockId()));
+                LOGGER.info("[Client] [Outer] EdgeServer.putBlockAndMetadata: " + (end - start));
+                LOGGER.info("Success: " + Utils.getUuidFromMessage(blockIdResponse.getBlockId()));
                 final long sleepTime = interval * 1000L - (end - start);
                 Thread.sleep(sleepTime >= 0? sleepTime : 0);
             }
             catch (Exception ex) {
-                System.out.println("Failed to insert block");
+                LOGGER.info("Failed to insert block");
                 ex.printStackTrace();
             }
         }

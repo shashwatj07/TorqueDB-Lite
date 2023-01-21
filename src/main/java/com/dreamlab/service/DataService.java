@@ -18,8 +18,10 @@ import com.dreamlab.utils.Utils;
 import com.google.common.geometry.S2CellId;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
+import com.influxdb.LogLevel;
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.InfluxDBClientFactory;
+import com.influxdb.client.InfluxDBClientOptions;
 import com.influxdb.client.QueryApi;
 import com.influxdb.client.WriteApiBlocking;
 import com.influxdb.client.domain.WritePrecision;
@@ -52,6 +54,9 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
     private final ConcurrentMap<S2CellId, ConcurrentLinkedQueue<BlockReplicaInfo>> geoMap;
     private final ConcurrentMap<UUID, BlockReplicaInfo> blockIdMap;
     private final InfluxDBClient influxDBClient;
+    private final WriteApiBlocking writeApi;
+    private final QueryApi queryApi;
+
     private final UUID fogId;
     private final String serverIp;
     private final int serverPort;
@@ -67,7 +72,22 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         this.serverPort = serverPort;
         this.token = token.toCharArray();
 
-        influxDBClient = InfluxDBClientFactory.create("http://localhost:8086?readTimeout=1m&connectTimeout=1m&writeTimeout=1m", this.token);
+        OkHttpClient.Builder okHttpClient = new OkHttpClient.Builder()
+                .connectTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(300, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(true);
+        InfluxDBClientOptions influxDBClientOptions = InfluxDBClientOptions.builder()
+                .authenticateToken(this.token)
+                .org("org")
+                .connectionString("http://localhost:8086?readTimeout=1m&connectTimeout=1m&writeTimeout=1m")
+                .okHttpClient(okHttpClient)
+                .logLevel(LogLevel.HEADERS)
+                .bucket("bucket")
+                .build();
+        influxDBClient = InfluxDBClientFactory.create(influxDBClientOptions);
+        writeApi = influxDBClient.getWriteApiBlocking();
+        queryApi = influxDBClient.getQueryApi();
         ConcurrentMap<String, ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>>> metaMapLocal;
         try {
             Object map = Utils.readObjectFromFile(String.format("%s/%s/metaMap", BACKUP_DIR_PATH, fogId));
@@ -151,8 +171,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         String org = "org";
 //        InfluxDBClient client = InfluxDBClientFactory.create("http://localhost:8086", token);
         final long t1 = System.currentTimeMillis();
-        WriteApiBlocking writeApi = influxDBClient.getWriteApiBlocking();
-        writeApi.writeRecord(bucket, org, WritePrecision.MS, request.getBlockContent().toStringUtf8());
+        writeApi.writeRecord(WritePrecision.MS, request.getBlockContent().toStringUtf8());
         final long t2 = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Outer] InfluxDB.writeRecord: %d", LOGGER.getName(), (t2 - t1)));
 //        client.close();
@@ -219,7 +238,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                         relevantBlocks.addAll(timeMap.getOrDefault(timeChunk, Constants.EMPTY_LIST_REPLICA));
                     }
                 }
-                LOGGER.info(LOGGER.getName() + " Relevant Blocks so far " + relevantBlocks);
+                LOGGER.info(LOGGER.getName() + " Relevant Blocks so far: " + relevantBlocks.size());
             }
             if (request.hasBoundingBox()) {
                 LOGGER.info(LOGGER.getName() + "hasBoundingBox: true");
@@ -240,14 +259,14 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 relevantBlocks.retainAll(metaMap.getOrDefault(predicate.getKey(), Constants.EMPTY_MAP_STRING_LIST_REPLICA).getOrDefault(predicate.getValue(), Constants.EMPTY_LIST_REPLICA));
             }
         }
-        LOGGER.info(LOGGER.getName() + " Relevant Blocks " + relevantBlocks);
+        LOGGER.info(LOGGER.getName() + " Relevant Blocks: " + relevantBlocks.size());
         findBlockResponseBuilder.addAllBlockIdReplicasMetadata(
                 relevantBlocks.stream().map(BlockReplicaInfo::toMessage).collect(Collectors.toSet()));
         FindBlocksResponse findBlocksResponse = findBlockResponseBuilder.build();
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Inner] DataServer.findBlocksLocal: %d", LOGGER.getName(), (end - start)));
-        LOGGER.info(LOGGER.getName() + "relevantBlocks: " + relevantBlocks);
-        LOGGER.info(LOGGER.getName() + "findBlocksLocal Response: " + findBlocksResponse);
+        LOGGER.info(LOGGER.getName() + "relevantBlocks: " + relevantBlocks.size());
+//        LOGGER.info(LOGGER.getName() + "findBlocksLocal Response: " + findBlocksResponse);
         responseObserver.onNext(findBlocksResponse);
         responseObserver.onCompleted();
     }
@@ -262,8 +281,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         TSDBQueryResponse.Builder responseBuilder = TSDBQueryResponse.newBuilder();
         final long t1 = System.currentTimeMillis();
         try {
-            QueryApi queryApi = influxDBClient.getQueryApi();
-            String response = queryApi.queryRaw(fluxQuery, "org");
+            String response = queryApi.queryRaw(fluxQuery);
             final long t2 = System.currentTimeMillis();
             LOGGER.info(String.format("%s[Outer] InfluxDB.queryRaw: %d", LOGGER.getName(), (t2 - t1)));
             LOGGER.info(LOGGER.getName() + "InfluxDB Response " + response);

@@ -4,7 +4,6 @@ import com.dreamlab.edgefs.grpcServices.HeartbeatRequest;
 import com.dreamlab.edgefs.grpcServices.ParentServerGrpc;
 import com.dreamlab.service.EdgeService;
 import com.dreamlab.types.FogInfo;
-import com.dreamlab.utils.Utils;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
@@ -58,7 +57,6 @@ public class Heartbeat implements Runnable {
     public void run() {
         while (true) {
             try {
-                Thread.sleep(1000L * ttlSecs);
                 updateParentFog();
                 final long start = System.currentTimeMillis();
                 stubs.get(parentFogId).sendHeartbeat(heartbeatRequest);
@@ -66,6 +64,7 @@ public class Heartbeat implements Runnable {
                 LOGGER.info(String.format("%s[Outer] ParentServer.sendHeartbeat: %d", LOGGER.getName(), (end - start)));
                 LOGGER.info(String.format("%sCurrent Location (%f, %f)", LOGGER.getName(), edgeService.getLatitude(), edgeService.getLongitude()));
                 LOGGER.info(LOGGER.getName() + "Heartbeat Sent To: " + parentFogId);
+                Thread.sleep(1000L * ttlSecs - (end - start));
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, LOGGER.getName() + e.getMessage(), e);
             }

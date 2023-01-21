@@ -89,11 +89,19 @@ public class ExecuteQueries {
             CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
             final long t1 = System.currentTimeMillis();
             try {
-                TSDBQueryResponse answer = perform(coordinatorServerBlockingStub, influxDBQuery);
+                ObjectOutputStream ostream;
+                ByteArrayOutputStream bstream = new ByteArrayOutputStream();
+                ostream = new ObjectOutputStream(bstream);
+                ostream.writeObject(influxDBQuery);
+                ByteBuffer buffer = ByteBuffer.allocate(bstream.size());
+                buffer.put(bstream.toByteArray());
+                buffer.flip();
+                LOGGER.info("Sending query object with query id " + influxDBQuery.getQueryId() + " from client.");
+                TSDBQueryResponse tsdbQueryResponse = coordinatorServerBlockingStub.execTSDBQuery(TSDBQueryRequest.newBuilder().setFluxQuery(ByteString.copyFrom(buffer)).build());
                 final long t2 = System.currentTimeMillis();
-                LOGGER.info(answer.getFluxQueryResponse().toStringUtf8());
+                LOGGER.info(String.format("[Query %s] Lines: %d", influxDBQuery.getQueryId(), tsdbQueryResponse.getFluxQueryResponse().toStringUtf8().chars().filter(c -> c == '\n').count()));
                 managedChannel.shutdown();
-                LOGGER.info(LOGGER.getName() + "[Outer] CoordinatorServer.execTSDBQuery: " + (t2 - t1));
+                LOGGER.info(LOGGER.getName() + "[Outer " + influxDBQuery.getQueryId() + "] CoordinatorServer.execTSDBQuery: " + (t2 - t1));
                 final long sleepTime = interval * 1000L - (t2 - t1);
                 Thread.sleep(sleepTime >= 0? sleepTime : 0);
             }
@@ -112,20 +120,4 @@ public class ExecuteQueries {
         return list;
     }
 
-    private static TSDBQueryResponse perform(CoordinatorServerGrpc.CoordinatorServerBlockingStub client, TSDBQuery query) {
-        try {
-            ObjectOutputStream ostream;
-            ByteArrayOutputStream bstream = new ByteArrayOutputStream();
-            ostream = new ObjectOutputStream(bstream);
-            ostream.writeObject(query);
-            ByteBuffer buffer = ByteBuffer.allocate(bstream.size());
-            buffer.put(bstream.toByteArray());
-            buffer.flip();
-            LOGGER.info("Sending query object with query id " + query.getQueryId() + " from client.");
-            return client.execTSDBQuery(TSDBQueryRequest.newBuilder().setFluxQuery(ByteString.copyFrom(buffer)).build());
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
 }
