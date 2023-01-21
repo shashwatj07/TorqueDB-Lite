@@ -52,6 +52,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,7 +69,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     private final int numFogs;
     private final Map<UUID, FogPartition> fogPartitions;
     private final List<UUID> fogIds;
-    private final Map<UUID, DataServerGrpc.DataServerBlockingStub> dataStubs;
+    private final ConcurrentMap<UUID, DataServerGrpc.DataServerBlockingStub> dataStubs;
 
     public CoordinatorService(UUID fogId, Map<UUID, FogInfo> fogDetails) {
         LOGGER = Logger.getLogger(String.format("[Fog: %s] ", fogId.toString()));
@@ -76,7 +78,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         numFogs = fogDetails.size();
         fogIds = new ArrayList<>(fogDetails.keySet());
         Collections.sort(fogIds);
-        dataStubs = new HashMap<>();
+        dataStubs = new ConcurrentHashMap<>();
     }
 
     @Override

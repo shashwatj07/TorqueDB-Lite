@@ -271,6 +271,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         }
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Inner] DataServer.execTSDBQueryLocal: %d", LOGGER.getName(), (end - start)));
+
         responseObserver.onNext(responseBuilder.build());
         responseObserver.onCompleted();
     }
