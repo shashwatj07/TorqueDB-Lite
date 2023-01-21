@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Logger;
 
 public class DataMigrationClient {
@@ -33,8 +34,10 @@ public class DataMigrationClient {
         qu1.addRange("2023-01-01 23-33-35", "2023-01-01 23-53-55");
         qu1.addRegion("13.0188576", "13.0213035", "77.4809204", "77.4818086");
         // First in filter is measurement, second is tag list, third is field list
+//        qu1.addFilter("pollution", Arrays.asList("application==traffic", "drone==dji-matrice"),
+//                Arrays.asList("aqi<1000"));
         qu1.addFilter("pollution", Arrays.asList("application==traffic", "drone==dji-matrice"),
-                Arrays.asList("aqi<1000"));
+                List.of());
         qu1.addKeep(Arrays.asList("_value", "_time")); // Influx
 //            qu1.addJoin(Arrays.asList("shard", "_time"), JoinType.INNER);
         qu1.addOptionalParameters(model, cache, queryPolicy);

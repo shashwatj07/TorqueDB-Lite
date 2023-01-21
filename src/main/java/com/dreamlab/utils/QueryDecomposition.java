@@ -93,7 +93,8 @@ public class QueryDecomposition {
 
         Set<UUID> devices = perFogQuery.keySet();
 
-        Model model = perFogQuery.get(devices.iterator().next()).getModel();
+//        Model model = perFogQuery.get(devices.iterator().next()).getModel();
+        Model model = null;
 
         Map<String, Map<String, String>> mapping = getL21Mapping(model);
         Map<UUID, String> perFogL2Query;
