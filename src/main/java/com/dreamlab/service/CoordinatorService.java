@@ -203,11 +203,11 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         }
         FindBlocksRequest findBlocksRequest = findBlocksRequestBuilder.build();
 
-        if (temporalShortlist.size() < spatialShortlist.size()) {
-            fogIds.addAll(temporalShortlist);
+        if (influxDBQuery.getOperations().containsKey("region") && spatialShortlist.size() < temporalShortlist.size()) {
+            fogIds.addAll(spatialShortlist);
         }
         else {
-            fogIds.addAll(spatialShortlist);
+            fogIds.addAll(temporalShortlist);
         }
 
         List<Future<FindBlocksResponse>> futures = new ArrayList<>();
