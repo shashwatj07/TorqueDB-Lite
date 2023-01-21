@@ -127,10 +127,10 @@ public class QueryDecomposition {
 
                         LocalDateTime start = LocalDateTime.parse(
                                 TempQu.getOperations().get("range").get("start"),
-                                DateTimeFormatter.ofPattern(Constants.DATE_TIME_PATTERN));
+                                DateTimeFormatter.ofPattern(Constants.DATE_TIME_PATTERN)).minusMinutes(330);
                         LocalDateTime stop = LocalDateTime.parse(
                                 TempQu.getOperations().get("range").get("stop"),
-                                DateTimeFormatter.ofPattern(Constants.DATE_TIME_PATTERN));
+                                DateTimeFormatter.ofPattern(Constants.DATE_TIME_PATTERN)).minusMinutes(330);
 
                         LocalDateTime temp_date = stop.minusSeconds(1);
 
