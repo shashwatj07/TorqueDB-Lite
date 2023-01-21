@@ -24,6 +24,7 @@ import com.influxdb.client.QueryApi;
 import com.influxdb.client.WriteApiBlocking;
 import com.influxdb.client.domain.WritePrecision;
 import io.grpc.stub.StreamObserver;
+import okhttp3.OkHttpClient;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -38,6 +39,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -64,7 +66,8 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         this.serverIp = serverIP;
         this.serverPort = serverPort;
         this.token = token.toCharArray();
-        influxDBClient = InfluxDBClientFactory.create("http://localhost:8086", this.token);
+
+        influxDBClient = InfluxDBClientFactory.create("http://localhost:8086?readTimeout=1m&connectTimeout=1m&writeTimeout=1m", this.token);
         ConcurrentMap<String, ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>>> metaMapLocal;
         try {
             Object map = Utils.readObjectFromFile(String.format("%s/%s/metaMap", BACKUP_DIR_PATH, fogId));
