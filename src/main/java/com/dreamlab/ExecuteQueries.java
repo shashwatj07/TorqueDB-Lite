@@ -81,19 +81,25 @@ public class ExecuteQueries {
             influxDBQuery.addOptionalParameters(model, cache, queryPolicy);
             influxDBQuery.addQueryId();
             LOGGER.info(LOGGER.getName() + influxDBQuery.getOperations());
+            int fogNo = Integer.parseInt(fogInfo.getDeviceIP().substring(fogInfo.getDeviceIP().lastIndexOf(".") + 1));
             ManagedChannel managedChannel = ManagedChannelBuilder
-                    .forAddress(fogInfo.getDeviceIP(), fogInfo.getDevicePort())
+                    .forAddress(String.format("172.17.0.%d", 101 + fogNo), fogInfo.getDevicePort())
                     .usePlaintext()
                     .build();
             CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
             final long t1 = System.currentTimeMillis();
-            TSDBQueryResponse answer = perform(coordinatorServerBlockingStub, influxDBQuery);
-            final long t2 = System.currentTimeMillis();
-            managedChannel.shutdown();
-            LOGGER.info(LOGGER.getName() + "[Outer] CoordinatorServer.execTSDBQuery: " + (t2 - t1));
-            final long sleepTime = interval * 1000L - (t2 - t1);
-            Thread.sleep(sleepTime >= 0? sleepTime : 0);
-            LOGGER.info(answer.getFluxQueryResponse().toStringUtf8());
+            try {
+                TSDBQueryResponse answer = perform(coordinatorServerBlockingStub, influxDBQuery);
+                final long t2 = System.currentTimeMillis();
+                LOGGER.info(answer.getFluxQueryResponse().toStringUtf8());
+                managedChannel.shutdown();
+                LOGGER.info(LOGGER.getName() + "[Outer] CoordinatorServer.execTSDBQuery: " + (t2 - t1));
+                final long sleepTime = interval * 1000L - (t2 - t1);
+                Thread.sleep(sleepTime >= 0? sleepTime : 0);
+            }
+            catch (Exception ex) {
+                ex.printStackTrace();
+            }
         }
     }
 
