@@ -339,8 +339,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         storeBlockRequestBuilder.setBlockContent(request.getBlockContent());
         TimeRange timeRange = timeRangeBuilder.build();
 //        BoundingBox boundingBox = boundingBoxBuilder.build();
-        List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
-        List<UUID> temporalShortlist = getTemporalShortlist(timeRange);
+        Set<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
+        Set<UUID> temporalShortlist = getTemporalShortlist(timeRange);
         UUID randomReplica = getRandomFogToReplicate(Utils.getUuidFromMessage(request.getBlockId()));
         Set<UUID> blockReplicaFogIds = getFogsToReplicate(Utils.getUuidFromMessage(request.getBlockId()), spatialShortlist, temporalShortlist, randomReplica);
         LOGGER.info(LOGGER.getName() + "Replica Fogs " + blockReplicaFogIds);
@@ -415,8 +415,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         indexMetadataRequestBuilder.setTimeRange(timeRange);
         BoundingBox boundingBox = boundingBoxBuilder.build();
         indexMetadataRequestBuilder.setBoundingBox(boundingBox);
-        List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
-        List<UUID> temporalShortlist = getTemporalShortlist(timeRange);
+        final Set<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
+        final Set<UUID> temporalShortlist = getTemporalShortlist(timeRange);
         UUID randomReplica = getRandomFogToReplicate(Utils.getUuidFromMessage(request.getBlockId()));
         Set<UUID> blockReplicaFogIds = getFogsToReplicate(Utils.getUuidFromMessage(request.getBlockId()), spatialShortlist, temporalShortlist, randomReplica);
 //        indexMetadataRequestBuilder.putMetadataMap(Keys.KEY_REPLICA_FOGS, blockReplicaFogIds.toString());
@@ -512,48 +512,48 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         return voronoiPolygons;
     }
 
-    private List<UUID> getSpatialShortlist(BoundingBox boundingBox) {
+    private Set<UUID> getSpatialShortlist(BoundingBox boundingBox) {
         return getSpatialShortlist(Utils.createPolygon(boundingBox));
     }
 
-    private List<UUID> getSpatialShortlist(double minLat, double maxLat, double minLon, double maxLon) {
+    private Set<UUID> getSpatialShortlist(double minLat, double maxLat, double minLon, double maxLon) {
         return getSpatialShortlist(Utils.createPolygon(minLat, maxLat, minLon, maxLon));
     }
 
-    private List<UUID> getSpatialShortlist(String minLat, String maxLat, String minLon, String maxLon) {
+    private Set<UUID> getSpatialShortlist(String minLat, String maxLat, String minLon, String maxLon) {
         return getSpatialShortlist(Double.parseDouble(minLat),
                 Double.parseDouble(maxLat), Double.parseDouble(minLon), Double.parseDouble(maxLon));
     }
 
-    private List<UUID> getSpatialShortlist(Polygon queryPolygon) {
+    private Set<UUID> getSpatialShortlist(Polygon queryPolygon) {
         final long start = System.currentTimeMillis();
-        List<UUID> spatialShortlist =  fogPartitions.keySet().stream().filter(fogId -> fogPartitions.get(fogId).getPolygon().intersects(queryPolygon)).collect(Collectors.toList());
+        Set<UUID> spatialShortlist =  fogPartitions.keySet().stream().filter(fogId -> fogPartitions.get(fogId).getPolygon().intersects(queryPolygon)).collect(Collectors.toSet());
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Local] CoordinatorServer.getSpatialShortlist: %d", LOGGER.getName(), (end - start)));
         LOGGER.info(String.format("%s[Count] CoordinatorServer.spatialShortlist: %d", LOGGER.getName(), spatialShortlist.size()));
         return spatialShortlist;
     }
 
-    private List<UUID> getTemporalShortlist(TimeRange timeRange) {
+    private Set<UUID> getTemporalShortlist(TimeRange timeRange) {
         final long start = System.currentTimeMillis();
         List<Instant> timeChunks = Utils.getTimeChunks(timeRange, Constants.TIME_CHUNK_SECONDS);
-        List<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get(Math.abs(chunk.hashCode() % numFogs))).collect(Collectors.toList());
+        Set<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get(Math.abs(chunk.hashCode() % numFogs))).collect(Collectors.toSet());
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Local] CoordinatorServer.getTemporalShortlist: %d", LOGGER.getName(), (end - start)));
         LOGGER.info(String.format("%s[Count] CoordinatorServer.temporalShortlist: %d", LOGGER.getName(), temporalShortlist.size()));
         return temporalShortlist;
     }
 
-    private List<UUID> getTemporalShortlist(String start, String end) {
+    private Set<UUID> getTemporalShortlist(String start, String end) {
         final long startTime = System.currentTimeMillis();
         List<Instant> timeChunks = Utils.getTimeChunks(start, end, Constants.TIME_CHUNK_SECONDS);
-        List<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get(Math.abs(chunk.hashCode() % numFogs))).collect(Collectors.toList());
+        Set<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get(Math.abs(chunk.hashCode() % numFogs))).collect(Collectors.toSet());
         final long endTime = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Local] CoordinatorServer.getTemporalShortlist: %d", LOGGER.getName(), (endTime - startTime)));
         return temporalShortlist;
     }
 
-    private Set<UUID> getFogsToReplicate(UUID blockId, List<UUID> spatialShortlist, List<UUID> temporalShortlist, UUID randomReplica) {
+    private Set<UUID> getFogsToReplicate(UUID blockId, Set<UUID> spatialShortlist, Set<UUID> temporalShortlist, UUID randomReplica) {
         Set<UUID> replicas = new HashSet<>(Set.of(randomReplica));
         o: for (UUID spatialReplica : spatialShortlist) {
             for (UUID temporalReplica : temporalShortlist) {
