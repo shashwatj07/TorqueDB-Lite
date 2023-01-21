@@ -33,7 +33,7 @@ public class DataMigrationClient {
         qu1.addRange("2022-10-28 23-33-35", "2024-10-28 23-33-55");
         qu1.addRegion("13.0188576", "13.0213035", "77.4809204", "77.4818086");
         // First in filter is measurement, second is tag list, third is field list
-        qu1.addFilter("pollution", Arrays.asList("application==traffic"),
+        qu1.addFilter("pollution", Arrays.asList("application==traffic", "drone==dji-matrice"),
                 Arrays.asList("aqi<1000"));
         qu1.addKeep(Arrays.asList("_value", "_time")); // Influx
 //            qu1.addJoin(Arrays.asList("shard", "_time"), JoinType.INNER);

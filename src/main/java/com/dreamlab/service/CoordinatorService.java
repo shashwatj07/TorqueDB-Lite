@@ -164,8 +164,10 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         }
         LOGGER.info(influxDBQuery.toString());
         FindBlocksRequest.Builder findBlocksRequestBuilder = FindBlocksRequest.newBuilder();
-
+        findBlocksRequestBuilder.setIsAndQuery(true);
         Set<UUID> fogIds = new HashSet<>();
+        Set<UUID> temporalShortlist = new HashSet<>();
+        Set<UUID> spatialShortlist = new HashSet<>();
         if (influxDBQuery.getOperations().containsKey("range")) {
             HashMap<String, String> range = influxDBQuery.getOperations().get("range");
             LOGGER.info(range.toString());
@@ -176,7 +178,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                                     .setEndTimestamp(Utils.getTimestampMessageFromInstant(Utils.getInstantFromString(range.get("stop"))))
                                     .build()
                     );
-            fogIds.addAll(getTemporalShortlist(range.get("start"), range.get("stop")));
+            temporalShortlist.addAll(getTemporalShortlist(range.get("start"), range.get("stop")));
         }
         if (influxDBQuery.getOperations().containsKey("region")) {
             HashMap<String, String> region = influxDBQuery.getOperations().get("region");
@@ -195,9 +197,16 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                                             .setLongitude(Double.parseDouble(region.get("minLon")))
                                             .build())
                             .build());
-            fogIds.addAll(getSpatialShortlist(findBlocksRequestBuilder.getBoundingBox()));
+            spatialShortlist.addAll(getSpatialShortlist(findBlocksRequestBuilder.getBoundingBox()));
         }
         FindBlocksRequest findBlocksRequest = findBlocksRequestBuilder.build();
+
+        if (temporalShortlist.size() < spatialShortlist.size()) {
+            fogIds.addAll(temporalShortlist);
+        }
+        else {
+            fogIds.addAll(spatialShortlist);
+        }
 
         List<Future<FindBlocksResponse>> futures = new ArrayList<>();
         final long t1 = System.currentTimeMillis();
@@ -212,18 +221,14 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         final long t2 = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Outer] CoordinatorServer.forEach.findBlocksLocal: %d", LOGGER.getName(), (t2 - t1)));
 
-
         HashSet<BlockIdReplicaMetadata> responseSet = new HashSet<>();
         for (Future<FindBlocksResponse> future : futures) {
             try {
                 FindBlocksResponse findBlocksResponse = future.get();
                 responseSet.addAll(findBlocksResponse.getBlockIdReplicasMetadataList());
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            } catch (ExecutionException e) {
+            } catch (InterruptedException | ExecutionException e) {
                 throw new RuntimeException(e);
             }
-
         }
         LOGGER.info(String.valueOf(responseSet.size()));
         /*

@@ -225,7 +225,6 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                     relevantBlocks.retainAll(geoBlocks);
                 }
                 else {
-                    flag = true;
                     for (S2CellId s2CellId : s2CellIds) {
                         relevantBlocks.addAll(geoMap.getOrDefault(s2CellId, Constants.EMPTY_LIST_REPLICA));
                     }
