@@ -243,8 +243,8 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         FindBlocksResponse findBlocksResponse = findBlockResponseBuilder.build();
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Inner] DataServer.findBlocksLocal: %d", LOGGER.getName(), (end - start)));
-        LOGGER.info(LOGGER.getName() + relevantBlocks);
-        LOGGER.info(LOGGER.getName() + serverPort + "\n" + findBlocksResponse);
+        LOGGER.info(LOGGER.getName() + "relevantBlocks: " + relevantBlocks);
+        LOGGER.info(LOGGER.getName() + "findBlocksLocal Response: " + findBlocksResponse);
         responseObserver.onNext(findBlocksResponse);
         responseObserver.onCompleted();
     }

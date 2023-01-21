@@ -210,6 +210,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             fogIds.addAll(temporalShortlist);
         }
 
+        LOGGER.info(String.format("%s[Query] CoordinatorServer.finalShortlist(%s): %s", LOGGER.getName(), influxDBQuery.getQueryId(), fogIds));
+
         List<Future<FindBlocksResponse>> futures = new ArrayList<>();
         final long t1 = System.currentTimeMillis();
         try {
