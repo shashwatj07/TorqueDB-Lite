@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -67,9 +68,15 @@ public class ExecuteQueries {
             String maxLat = regionTokenizer.nextToken();
             String minLon = regionTokenizer.nextToken();
             String maxLon = regionTokenizer.nextToken();
-            influxDBQuery.addRegion(minLat, maxLat, minLon, maxLon);
-            influxDBQuery.addFilter(measurement, getTagFilterList(tags.get(Constants.RANDOM.nextInt(tags.size()))),
-                    Arrays.asList(fields.get(Constants.RANDOM.nextInt(fields.size()))));
+            if (Constants.RANDOM.nextBoolean()) {
+                influxDBQuery.addRegion(minLat, maxLat, minLon, maxLon);
+                influxDBQuery.addFilter(measurement, getTagFilterList(tags.get(Constants.RANDOM.nextInt(tags.size()))),
+                        List.of());
+            }
+            else {
+                influxDBQuery.addFilter(measurement, getTagFilterList(tags.get(Constants.RANDOM.nextInt(tags.size()))),
+                        Collections.singletonList(fields.get(Constants.RANDOM.nextInt(fields.size()))));
+            }
             influxDBQuery.addKeep(keep);
             influxDBQuery.addOptionalParameters(model, cache, queryPolicy);
             influxDBQuery.addQueryId();
