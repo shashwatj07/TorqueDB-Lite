@@ -31,13 +31,13 @@ public class DataMigrationClient {
         Cache cache = Cache.FALSE;
         QueryPolicy queryPolicy = QueryPolicy.QP1;
         qu1.addBucketName("bucket"); // Influx
-        qu1.addRange("2023-01-01 23-33-35", "2023-01-01 23-53-55");
-        qu1.addRegion("13.0188576", "13.0213035", "77.4809204", "77.4818086");
+        qu1.addRange("2023-01-01 21-33-35", "2023-01-01 23-53-55");
+//        qu1.addRegion("13.0188576", "13.0213035", "77.4809204", "77.4818086");
         // First in filter is measurement, second is tag list, third is field list
-//        qu1.addFilter("pollution", Arrays.asList("application==traffic", "drone==dji-matrice"),
-//                Arrays.asList("aqi<1000"));
         qu1.addFilter("pollution", Arrays.asList("application==traffic", "drone==dji-matrice"),
-                List.of());
+                Arrays.asList("aqi<1000"));
+//        qu1.addFilter("pollution", Arrays.asList("application==traffic", "drone==dji-matrice"),
+//                List.of());
         qu1.addKeep(Arrays.asList("_value", "_time")); // Influx
 //            qu1.addJoin(Arrays.asList("shard", "_time"), JoinType.INNER);
         qu1.addOptionalParameters(model, cache, queryPolicy);
