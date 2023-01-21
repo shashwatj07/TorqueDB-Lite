@@ -179,6 +179,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                                     .build()
                     );
             temporalShortlist.addAll(getTemporalShortlist(range.get("start"), range.get("stop")));
+            LOGGER.info(String.format("%s[Query] CoordinatorServer.temporalShortlist(%s): %s", LOGGER.getName(), influxDBQuery.getQueryId(), temporalShortlist));
         }
         if (influxDBQuery.getOperations().containsKey("region")) {
             HashMap<String, String> region = influxDBQuery.getOperations().get("region");
@@ -197,6 +198,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                                             .setLongitude(Double.parseDouble(region.get("minLon")))
                                             .build())
                             .build());
+            LOGGER.info(String.format("%s[Query] CoordinatorServer.spatialShortlist(%s): %s", LOGGER.getName(), influxDBQuery.getQueryId(), spatialShortlist));
             spatialShortlist.addAll(getSpatialShortlist(findBlocksRequestBuilder.getBoundingBox()));
         }
         FindBlocksRequest findBlocksRequest = findBlocksRequestBuilder.build();
@@ -439,10 +441,10 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         LOGGER.info(String.format("%s[Outer] CoordinatorServer.forEach.sendMetadataToDataStoreFog: %d", LOGGER.getName(), (t2 - t1)));
         Response response = Response.newBuilder().setIsSuccess(true).build();
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%sCoordinatorServer.randomReplica(%s): %s", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), randomReplica));
-        LOGGER.info(String.format("%sCoordinatorServer.spatialShortlist(%s): %s", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), spatialShortlist));
-        LOGGER.info(String.format("%sCoordinatorServer.temporalShortlist(%s): %s", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), temporalShortlist));
-        LOGGER.info(String.format("%sCoordinatorServer.randomShortlist(%s): [%s]", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), randomReplica));
+        LOGGER.info(String.format("%s[Insert] CoordinatorServer.randomReplica(%s): %s", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), randomReplica));
+        LOGGER.info(String.format("%s[Insert] CoordinatorServer.spatialShortlist(%s): %s", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), spatialShortlist));
+        LOGGER.info(String.format("%s[Insert] CoordinatorServer.temporalShortlist(%s): %s", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), temporalShortlist));
+        LOGGER.info(String.format("%s[Insert] CoordinatorServer.randomShortlist(%s): [%s]", LOGGER.getName(), Utils.getUuidFromMessage(request.getBlockId()), randomReplica));
         LOGGER.info(String.format("%s[Inner] CoordinatorServer.putMetadata: %d", LOGGER.getName(), (end - start)));
         responseObserver.onNext(response);
         responseObserver.onCompleted();
@@ -557,8 +559,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                         && !replicas.contains(temporalReplica)) {
                     replicas.add(spatialReplica);
                     replicas.add(temporalReplica);
-                    LOGGER.info(String.format("%sCoordinatorServer.spatialReplica(%s): %s", LOGGER.getName(), blockId, spatialReplica));
-                    LOGGER.info(String.format("%sCoordinatorServer.temporalReplica(%s): %s", LOGGER.getName(), blockId, temporalReplica));
+                    LOGGER.info(String.format("%s[Insert] CoordinatorServer.spatialReplica(%s): %s", LOGGER.getName(), blockId, spatialReplica));
+                    LOGGER.info(String.format("%s[Insert] CoordinatorServer.temporalReplica(%s): %s", LOGGER.getName(), blockId, temporalReplica));
                     break o;
                 }
             }
