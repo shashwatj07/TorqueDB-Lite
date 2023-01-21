@@ -194,6 +194,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
             LOGGER.info(LOGGER.getName() + "AND Query");
             boolean flag = false;
             if (request.hasBlockId()) {
+                LOGGER.info(LOGGER.getName() + "hasBlockId: true");
                 flag = true;
                 UUID blockId = Utils.getUuidFromMessage(request.getBlockId());
                 if (blockIdMap.containsKey(blockId)) {
@@ -201,6 +202,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 }
             }
             if (request.hasTimeRange()) {
+                LOGGER.info(LOGGER.getName() + "hasTimeRange: true");
                 if (flag) {
                     Set<BlockReplicaInfo> timeBlocks = new HashSet<>();
                     for (Instant timeChunk : timeChunks) {
@@ -214,9 +216,10 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                         relevantBlocks.addAll(timeMap.getOrDefault(timeChunk, Constants.EMPTY_LIST_REPLICA));
                     }
                 }
-
+                LOGGER.info(LOGGER.getName() + " Relevant Blocks so far " + relevantBlocks);
             }
             if (request.hasBoundingBox()) {
+                LOGGER.info(LOGGER.getName() + "hasBoundingBox: true");
                 if (flag) {
                     Set<BlockReplicaInfo> geoBlocks = new HashSet<>();
                     for (S2CellId s2CellId : s2CellIds) {
@@ -234,6 +237,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 relevantBlocks.retainAll(metaMap.getOrDefault(predicate.getKey(), Constants.EMPTY_MAP_STRING_LIST_REPLICA).getOrDefault(predicate.getValue(), Constants.EMPTY_LIST_REPLICA));
             }
         }
+        LOGGER.info(LOGGER.getName() + " Relevant Blocks " + relevantBlocks);
         findBlockResponseBuilder.addAllBlockIdReplicasMetadata(
                 relevantBlocks.stream().map(BlockReplicaInfo::toMessage).collect(Collectors.toSet()));
         FindBlocksResponse findBlocksResponse = findBlockResponseBuilder.build();

@@ -232,7 +232,9 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                 throw new RuntimeException(e);
             }
         }
-        LOGGER.info(String.valueOf(responseSet.size()));
+        LOGGER.info(String.format("%s[Count] CoordinatorServer.finalBlocks(%s): %d", LOGGER.getName(), influxDBQuery.getQueryId(), responseSet.size()));
+        LOGGER.info(String.format("%s[Count] CoordinatorServer.finalBlocks(%s): %s", LOGGER.getName(), influxDBQuery.getQueryId(), responseSet));
+
         /*
         1. Execute Cost model to assign blocks to fogs
         2. Generate flux query on the coordinator
