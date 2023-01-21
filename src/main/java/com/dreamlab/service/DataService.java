@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
 
 public class DataService extends DataServerGrpc.DataServerImplBase {
 
-    private static String BACKUP_DIR_PATH = "backup";
+    private static String BACKUP_DIR_PATH = "/home/ultraviolet/experiments/backup";
     private final ConcurrentMap<String, ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>>> metaMap;
     private final ConcurrentMap<Instant, ConcurrentLinkedQueue<BlockReplicaInfo>> timeMap;
     private final ConcurrentMap<S2CellId, ConcurrentLinkedQueue<BlockReplicaInfo>> geoMap;

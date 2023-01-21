@@ -247,12 +247,32 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         QueryDecomposition queryDecomposition = new QueryDecomposition();
         CostModelOutput costModelOutput = queryDecomposition.l21decompose(fogQueries, plan);
         System.out.println("L2: " + costModelOutput.perFogLevel2Query);
-        StringBuilder responseBuffer = new StringBuilder();
-        for (Map.Entry<UUID, String> entry : costModelOutput.perFogLevel2Query.entrySet()) {
-            TSDBQueryResponse response = execTSDBQueryOnDataStoreFog(entry.getKey(),
-                    TSDBQueryRequest.newBuilder().setFluxQuery(ByteString.copyFromUtf8(entry.getValue())).build());
-            responseBuffer.append(response.getFluxQueryResponse().toStringUtf8());
+
+        List<Future<TSDBQueryResponse>> futureList = new ArrayList<>();
+        final long t3 = System.currentTimeMillis();
+        try {
+            ExecutorService executorService = Executors.newFixedThreadPool(Constants.N_THREADS);
+            for (Map.Entry<UUID, String> entry : costModelOutput.perFogLevel2Query.entrySet()) {
+                futureList.add(executorService.submit(()->execTSDBQueryOnDataStoreFog(entry.getKey(),
+                        TSDBQueryRequest.newBuilder().setFluxQuery(ByteString.copyFromUtf8(entry.getValue())).build())));
+            }
+            executorService.shutdown();
+            executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
+        final long t4 = System.currentTimeMillis();
+        LOGGER.info(String.format("%s[Outer] CoordinatorServer.forEach.execTSDBQueryLocal: %d", LOGGER.getName(), (t4 - t3)));
+
+        StringBuilder responseBuffer = new StringBuilder();
+        for (Future<TSDBQueryResponse> future : futureList) {
+            try {
+                responseBuffer.append(future.get().getFluxQueryResponse().toStringUtf8());
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         tsdbQueryResponseBuilder.setFluxQueryResponse(ByteString.copyFromUtf8(responseBuffer.toString()));
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Inner] CoordinatorServer.execTSDBQuery: %d", LOGGER.getName(), (end - start)));
