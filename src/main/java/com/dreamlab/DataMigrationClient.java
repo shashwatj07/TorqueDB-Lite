@@ -30,7 +30,7 @@ public class DataMigrationClient {
         Cache cache = Cache.FALSE;
         QueryPolicy queryPolicy = QueryPolicy.QP1;
         qu1.addBucketName("bucket"); // Influx
-        qu1.addRange("2022-10-28 23-33-35", "2024-10-28 23-33-55");
+        qu1.addRange("2023-01-01 23-33-35", "2023-01-01 23-53-55");
         qu1.addRegion("13.0188576", "13.0213035", "77.4809204", "77.4818086");
         // First in filter is measurement, second is tag list, third is field list
         qu1.addFilter("pollution", Arrays.asList("application==traffic", "drone==dji-matrice"),
@@ -41,7 +41,7 @@ public class DataMigrationClient {
 
         try {
             ManagedChannel managedChannel = ManagedChannelBuilder
-                    .forAddress("127.0.0.1", 8001)
+                    .forAddress(args[0], Integer.parseInt(args[1]))
                     .usePlaintext()
                     .build();
             CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
