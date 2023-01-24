@@ -14,6 +14,8 @@ import com.dreamlab.edgefs.grpcServices.TSDBQueryResponse;
 import com.dreamlab.edgefs.grpcServices.TimeRange;
 import com.dreamlab.edgefs.grpcServices.UUIDMessage;
 import com.dreamlab.types.BlockReplicaInfo;
+import com.dreamlab.utils.Operation;
+import com.dreamlab.utils.RetryOperation;
 import com.dreamlab.utils.Utils;
 import com.google.common.geometry.S2CellId;
 import com.google.protobuf.ByteString;
@@ -170,7 +172,12 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         String bucket = "bucket";
         String org = "org";
         final long t1 = System.currentTimeMillis();
-        writeApi.writeRecord(WritePrecision.MS, request.getBlockContent().toStringUtf8());
+        RetryOperation.doWithRetry(3, new Operation() {
+            @Override
+            public void doIt() {
+                writeApi.writeRecord(WritePrecision.MS, request.getBlockContent().toStringUtf8());
+            }
+        });
         final long t2 = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Outer] InfluxDB.writeRecord: %d", LOGGER.getName(), (t2 - t1)));
         final long end = System.currentTimeMillis();
