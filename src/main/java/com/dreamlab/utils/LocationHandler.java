@@ -35,13 +35,18 @@ public class LocationHandler implements Runnable {
         }
     }
 
-    private void updateLocation(int skip) throws IOException {
-        String line = locationReader.readLine();
-        StringTokenizer stringTokenizer = new StringTokenizer(line, ",");
-        edgeService.setLatitude(Double.parseDouble(stringTokenizer.nextToken()));
-        edgeService.setLongitude(Double.parseDouble(stringTokenizer.nextToken()));
-        for (int i = 0; i < skip; i++) {
-            locationReader.readLine();
+    private void updateLocation(int skip) {
+        try {
+            String line = locationReader.readLine();
+            StringTokenizer stringTokenizer = new StringTokenizer(line, ",");
+            edgeService.setLatitude(Double.parseDouble(stringTokenizer.nextToken()));
+            edgeService.setLongitude(Double.parseDouble(stringTokenizer.nextToken()));
+            for (int i = 0; i < skip; i++) {
+                locationReader.readLine();
+            }
+        }
+        catch (Exception ex) {
+            LOGGER.info("Cannot update location, exhausted trajectory information.");
         }
     }
 
