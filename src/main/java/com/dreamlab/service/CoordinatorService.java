@@ -466,14 +466,18 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
 
     private void sendMetadataToDataStoreFog(UUID dataStoreFogId, IndexMetadataRequest indexMetadataRequest) {
         final long start = System.currentTimeMillis();
-        Response response = getDataStub(dataStoreFogId).indexMetadataLocal(indexMetadataRequest);
+        Response response = getDataStub(dataStoreFogId)
+                .withDeadlineAfter(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .indexMetadataLocal(indexMetadataRequest);
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Outer] DataServer.indexMetadataLocal: %d", LOGGER.getName(), (end - start)));
     }
 
     private void sendBlockToDataStoreFog(UUID dataStoreFogId, StoreBlockRequest storeBlockRequest) {
         final long start = System.currentTimeMillis();
-        Response response = getDataStub(dataStoreFogId).storeBlockLocal(storeBlockRequest);
+        Response response = getDataStub(dataStoreFogId)
+                .withDeadlineAfter(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .storeBlockLocal(storeBlockRequest);
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Outer] DataServer.storeBlockLocal: %d", LOGGER.getName(), (end - start)));
     }

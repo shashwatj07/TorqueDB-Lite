@@ -77,11 +77,15 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
 
         CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = getCoordinatorStub(parentFogInfo.getDeviceId());
         final long t1 = System.currentTimeMillis();
-        Response putBlockResponse = coordinatorServerBlockingStub.putBlockByMetadata(putBlockRequestBuilder.build());
+        Response putBlockResponse = coordinatorServerBlockingStub
+                .withDeadlineAfter(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .putBlockByMetadata(putBlockRequestBuilder.build());
         final long t2 = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Outer] CoordinatorServer.putBlockByMetadata: %d", LOGGER.getName(), (t2 - t1)));
         final long t3 = System.currentTimeMillis();
-        Response putMetadataResponse = coordinatorServerBlockingStub.putMetadata(putMetadataRequestBuilder.build());
+        Response putMetadataResponse = coordinatorServerBlockingStub
+                .withDeadlineAfter(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .putMetadata(putMetadataRequestBuilder.build());
         final long t4 = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Outer] CoordinatorServer.putMetadata: %d", LOGGER.getName(), (t4 - t3)));
         BlockIdResponse.Builder blockIdResponseBuilder = BlockIdResponse.newBuilder();
