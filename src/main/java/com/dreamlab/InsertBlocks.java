@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -53,6 +54,7 @@ public final class InsertBlocks {
                         .build();
                 final long start = System.currentTimeMillis();
                 BlockIdResponse blockIdResponse = edgeServerBlockingStub
+                        .withDeadlineAfter(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
                         .putBlockAndMetadata(putBlockAndMetadataRequest);
                 final long end = System.currentTimeMillis();
                 LOGGER.info("[Client] [Outer] EdgeServer.putBlockAndMetadata: " + (end - start));

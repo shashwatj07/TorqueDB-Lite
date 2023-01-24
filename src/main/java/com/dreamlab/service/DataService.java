@@ -73,16 +73,16 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         this.token = token.toCharArray();
 
         OkHttpClient.Builder okHttpClient = new OkHttpClient.Builder()
-                .connectTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(60, TimeUnit.SECONDS)
-                .readTimeout(300, TimeUnit.SECONDS)
+                .connectTimeout(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .writeTimeout(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .readTimeout(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
                 .retryOnConnectionFailure(true);
         InfluxDBClientOptions influxDBClientOptions = InfluxDBClientOptions.builder()
                 .authenticateToken(this.token)
                 .org("org")
-                .connectionString("http://localhost:8086?readTimeout=1m&connectTimeout=1m&writeTimeout=1m")
+                .connectionString("http://localhost:8086?readTimeout=60m&connectTimeout=60m&writeTimeout=60m") // ?readTimeout=1m&connectTimeout=1m&writeTimeout=1m
                 .okHttpClient(okHttpClient)
-                .logLevel(LogLevel.HEADERS)
+                .logLevel(LogLevel.BASIC)
                 .bucket("bucket")
                 .build();
         influxDBClient = InfluxDBClientFactory.create(influxDBClientOptions);
@@ -169,12 +169,10 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         Response.Builder responseBuilder = Response.newBuilder();
         String bucket = "bucket";
         String org = "org";
-//        InfluxDBClient client = InfluxDBClientFactory.create("http://localhost:8086", token);
         final long t1 = System.currentTimeMillis();
         writeApi.writeRecord(WritePrecision.MS, request.getBlockContent().toStringUtf8());
         final long t2 = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Outer] InfluxDB.writeRecord: %d", LOGGER.getName(), (t2 - t1)));
-//        client.close();
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Inner] DataServer.storeBlockLocal: %d", LOGGER.getName(), (end - start)));
         responseObserver.onNext(responseBuilder.build());

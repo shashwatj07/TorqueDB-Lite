@@ -351,7 +351,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         StoreBlockRequest storeBlockRequest = storeBlockRequestBuilder.build();
         final long t1 = System.currentTimeMillis();
         try {
-            ExecutorService executorService = Executors.newFixedThreadPool(Constants.N_THREADS);
+            ExecutorService executorService = Executors.newFixedThreadPool(3);
             blockReplicaFogIds.forEach(replicaFogId -> {
                 executorService.submit(() -> sendBlockToDataStoreFog(replicaFogId, storeBlockRequest));
             });

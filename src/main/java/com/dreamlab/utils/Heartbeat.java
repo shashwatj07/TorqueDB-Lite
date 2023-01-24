@@ -17,7 +17,7 @@ public class Heartbeat implements Runnable {
 
     private final EdgeService edgeService;
 
-    private final Map<UUID, ParentServerGrpc.ParentServerBlockingStub> stubs;
+    private final Map<UUID, ParentServerGrpc.ParentServerFutureStub> stubs;
 
     private final HeartbeatRequest heartbeatRequest;
 
@@ -49,7 +49,7 @@ public class Heartbeat implements Runnable {
                     .forAddress(parentFogInfo.getDeviceIP(), parentFogInfo.getDevicePort())
                     .usePlaintext()
                     .build();
-            stubs.put(parentFogId, ParentServerGrpc.newBlockingStub(managedChannel));
+            stubs.put(parentFogId, ParentServerGrpc.newFutureStub(managedChannel));
         }
     }
 
@@ -60,11 +60,12 @@ public class Heartbeat implements Runnable {
                 updateParentFog();
                 final long start = System.currentTimeMillis();
                 stubs.get(parentFogId).sendHeartbeat(heartbeatRequest);
-                final long end = System.currentTimeMillis();
-                LOGGER.info(String.format("%s[Outer] ParentServer.sendHeartbeat: %d", LOGGER.getName(), (end - start)));
+//                final long end = System.currentTimeMillis();
+//                LOGGER.info(String.format("%s[Outer] ParentServer.sendHeartbeat: %d", LOGGER.getName(), (end - start)));
                 LOGGER.info(String.format("%sCurrent Location (%f, %f)", LOGGER.getName(), edgeService.getLatitude(), edgeService.getLongitude()));
                 LOGGER.info(LOGGER.getName() + "Heartbeat Sent To: " + parentFogId);
-                Thread.sleep(1000L * ttlSecs - (end - start));
+                final long sleepTime = 1000L * ttlSecs - (System.currentTimeMillis() - start);
+                Thread.sleep(sleepTime > 0 ? sleepTime : 0);
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, LOGGER.getName() + e.getMessage(), e);
             }
