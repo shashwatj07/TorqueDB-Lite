@@ -286,11 +286,18 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         TSDBQueryResponse.Builder responseBuilder = TSDBQueryResponse.newBuilder();
         final long t1 = System.currentTimeMillis();
         try {
-            String response = queryApi.queryRaw(fluxQuery);
+            final String[] response = {null};
+            RetryOperation.doWithRetry(3, new Operation() {
+                @Override
+                public void doIt() {
+                    response[0] = queryApi.queryRaw(fluxQuery);
+                }
+            });
+//            String response = queryApi.queryRaw(fluxQuery);
             final long t2 = System.currentTimeMillis();
             LOGGER.info(String.format("%s[Outer] InfluxDB.queryRaw: %d", LOGGER.getName(), (t2 - t1)));
-            LOGGER.info(LOGGER.getName() + "InfluxDB Response " + response);
-            responseBuilder.setFluxQueryResponse(ByteString.copyFromUtf8(response));
+            LOGGER.info(LOGGER.getName() + "InfluxDB Response " + response[0]);
+            responseBuilder.setFluxQueryResponse(ByteString.copyFromUtf8(response[0]));
         }
         catch (Exception ex) {
             throw new RuntimeException(ex);

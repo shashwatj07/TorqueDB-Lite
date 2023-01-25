@@ -103,6 +103,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             executorService.shutdown();
             executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
         final long t2 = System.currentTimeMillis();
@@ -113,9 +114,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             try {
                 FindBlocksResponse findBlocksResponse = future.get();
                 responseSet.addAll(findBlocksResponse.getBlockIdReplicasMetadataList());
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            } catch (ExecutionException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
                 throw new RuntimeException(e);
             }
 
@@ -162,6 +162,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             objectInputStream = new ObjectInputStream(request.getFluxQuery().newInput());
             influxDBQuery = (InfluxDBQuery) objectInputStream.readObject();
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
         LOGGER.info(influxDBQuery.toString());
@@ -222,6 +223,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             executorService.shutdown();
             executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
         final long t2 = System.currentTimeMillis();
@@ -233,6 +235,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                 FindBlocksResponse findBlocksResponse = future.get();
                 responseSet.addAll(findBlocksResponse.getBlockIdReplicasMetadataList());
             } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
                 throw new RuntimeException(e);
             }
         }
@@ -267,6 +270,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             executorService.shutdown();
             executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
         final long t4 = System.currentTimeMillis();
@@ -277,6 +281,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             try {
                 responseBuffer.append(future.get().getFluxQueryResponse().toStringUtf8());
             } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
 //                throw new RuntimeException(e);
             }
         }
@@ -358,6 +363,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             executorService.shutdown();
             executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
         final long t2 = System.currentTimeMillis();
@@ -413,6 +419,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         }
         catch (Exception e) {
             e.printStackTrace();
+            throw new RuntimeException(e);
         }
         indexMetadataRequestBuilder.setBlockId(request.getBlockId());
         TimeRange timeRange = timeRangeBuilder.build();
@@ -441,6 +448,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             executorService.shutdown();
             executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
         final long t2 = System.currentTimeMillis();
