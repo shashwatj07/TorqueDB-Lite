@@ -172,7 +172,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         String bucket = "bucket";
         String org = "org";
         final long t1 = System.currentTimeMillis();
-        RetryOperation.doWithRetry(3, new Operation() {
+        RetryOperation.doWithRetry(1, new Operation() {
             @Override
             public void doIt() {
                 writeApi.writeRecord(WritePrecision.MS, request.getBlockContent().toStringUtf8());
@@ -287,7 +287,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         final long t1 = System.currentTimeMillis();
         try {
             final String[] response = {null};
-            RetryOperation.doWithRetry(3, new Operation() {
+            RetryOperation.doWithRetry(1, new Operation() {
                 @Override
                 public void doIt() {
                     response[0] = queryApi.queryRaw(fluxQuery);
