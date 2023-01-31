@@ -2,10 +2,11 @@ package com.dreamlab.utils;
 
 import com.dreamlab.service.EdgeService;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -19,7 +20,9 @@ public class LocationHandler implements Runnable {
 
     private final int ttlSecs;
 
-    private BufferedReader locationReader = null;
+    private List<String> trajectoryList = new ArrayList<>();
+
+    private int trajectoryIndex;
 
     private final Logger LOGGER;
 
@@ -29,21 +32,20 @@ public class LocationHandler implements Runnable {
         this.ttlSecs = ttlSecs;
         this.edgeId = edgeId;
         try {
-            this.locationReader = new BufferedReader(new FileReader(trajectoryFilePath));
-        } catch (FileNotFoundException e) {
+            trajectoryList = Files.readAllLines(Path.of(trajectoryFilePath));
+        } catch (IOException e) {
             e.printStackTrace();
         }
+        trajectoryIndex = 0;
     }
 
     private void updateLocation(int skip) {
         try {
-            String line = locationReader.readLine();
+            String line = trajectoryList.get(trajectoryIndex).strip();
             StringTokenizer stringTokenizer = new StringTokenizer(line, ",");
             edgeService.setLatitude(Double.parseDouble(stringTokenizer.nextToken()));
             edgeService.setLongitude(Double.parseDouble(stringTokenizer.nextToken()));
-            for (int i = 0; i < skip; i++) {
-                locationReader.readLine();
-            }
+            trajectoryIndex += skip + 1;
         }
         catch (Exception ex) {
             LOGGER.info("Cannot update location, exhausted trajectory information.");
@@ -54,7 +56,7 @@ public class LocationHandler implements Runnable {
     public void run() {
         while (true) {
             try {
-                updateLocation(300 / ttlSecs - 1);
+                updateLocation(59);
                 Thread.sleep(1000L * ttlSecs);
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, LOGGER.getName() + e.getMessage(), e);
