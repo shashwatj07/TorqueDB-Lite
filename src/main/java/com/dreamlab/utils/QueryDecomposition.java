@@ -147,23 +147,24 @@ public class QueryDecomposition {
                                 .append(" }, strict: false)");
                         break;
                     case "add_filter":
-                        query.append("|> filter(fn: (r)=> r.blockid =~ /");
+                        query.append("|> filter(fn: (r)=>");
                         List<UUID> temp_mbids = new ArrayList<>();
                         for (ExecPlan execPlan : plan) {
                             if (execPlan.getFogId().equals(i)) {
                                 temp_mbids.add(execPlan.getBlockId());
                             }
                         }
+                        System.out.println("# Blocks Per Query: " + temp_mbids.size());
                         int index = 0;
                         for (UUID id : temp_mbids) {
                             if (index < temp_mbids.size() - 1) {
-                                query.append(id).append("|");
+                                query.append(" r.blockid==\"").append(id).append("\" or");
                                 index++;
                             } else {
-                                query.append(id);
+                                query.append(" r.blockid==\"").append(id).append("\"");
                             }
                         }
-                        query.append("/ )");
+                        query.append(")");
 
                         for (Condition k : TempQu.getFilterConditions()) {
                             query.append("|> filter( fn: (r) => ");
