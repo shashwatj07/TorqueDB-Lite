@@ -159,7 +159,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         ObjectInputStream objectInputStream = null;
         InfluxDBQuery influxDBQuery = null;
         try {
-            objectInputStream = new ObjectInputStream(request.getFluxQuery().newInput());
+            objectInputStream = new ObjectInputStream(request.getFluxQuery(0).newInput());
             influxDBQuery = (InfluxDBQuery) objectInputStream.readObject();
         } catch (Exception e) {
             e.printStackTrace();
@@ -263,9 +263,11 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         final long t3 = System.currentTimeMillis();
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(Constants.N_THREADS);
-            for (Map.Entry<UUID, String> entry : costModelOutput.perFogLevel2Query.entrySet()) {
-                futureList.add(executorService.submit(()->execTSDBQueryOnDataStoreFog(entry.getKey(),
-                        TSDBQueryRequest.newBuilder().setFluxQuery(ByteString.copyFromUtf8(entry.getValue())).build())));
+            for (Map.Entry<UUID, List<String>> entry : costModelOutput.perFogLevel2Query.entrySet()) {
+                for (String query : entry.getValue()) {
+                    futureList.add(executorService.submit(() -> execTSDBQueryOnDataStoreFog(entry.getKey(),
+                            TSDBQueryRequest.newBuilder().addFluxQuery(ByteString.copyFromUtf8(query)).build())));
+                }
             }
             executorService.shutdown();
             executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);

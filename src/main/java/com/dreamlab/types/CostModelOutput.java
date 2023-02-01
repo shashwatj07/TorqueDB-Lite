@@ -1,10 +1,11 @@
 package com.dreamlab.types;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public class CostModelOutput {
-	public Map<UUID, String> perFogLevel2Query;
+	public Map<UUID, List<String>> perFogLevel2Query;
 
 //    	1: required map<string,string> perFogLevel2Query;
 //	2: required map<string,list<i64>> perFogMbids;

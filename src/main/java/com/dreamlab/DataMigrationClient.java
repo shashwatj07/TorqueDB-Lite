@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.List;
 import java.util.logging.Logger;
 
 public class DataMigrationClient {
@@ -70,7 +69,7 @@ public class DataMigrationClient {
             buffer.put(bstream.toByteArray());
             buffer.flip();
             LOGGER.info("Sending query object with query id " + query.getQueryId() + " from client.");
-            return client.execTSDBQuery(TSDBQueryRequest.newBuilder().setFluxQuery(ByteString.copyFrom(buffer)).build());
+            return client.execTSDBQuery(TSDBQueryRequest.newBuilder().addFluxQuery(ByteString.copyFrom(buffer)).build());
         } catch (Exception e) {
             e.printStackTrace();
             return null;

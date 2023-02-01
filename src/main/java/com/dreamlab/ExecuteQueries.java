@@ -68,7 +68,7 @@ public class ExecuteQueries {
             String maxLat = regionTokenizer.nextToken();
             String minLon = regionTokenizer.nextToken();
             String maxLon = regionTokenizer.nextToken();
-            if (Constants.RANDOM.nextBoolean()) {
+            if (true) { // TODO
                 influxDBQuery.addRegion(minLat, maxLat, minLon, maxLon);
                 influxDBQuery.addFilter(measurement, getTagFilterList(tags.get(Constants.RANDOM.nextInt(tags.size()))),
                         List.of());
@@ -97,7 +97,7 @@ public class ExecuteQueries {
                 buffer.put(bstream.toByteArray());
                 buffer.flip();
                 LOGGER.info("Sending query object with query id " + influxDBQuery.getQueryId() + " from client.");
-                TSDBQueryResponse tsdbQueryResponse = coordinatorServerBlockingStub.execTSDBQuery(TSDBQueryRequest.newBuilder().setFluxQuery(ByteString.copyFrom(buffer)).build());
+                TSDBQueryResponse tsdbQueryResponse = coordinatorServerBlockingStub.execTSDBQuery(TSDBQueryRequest.newBuilder().addFluxQuery(ByteString.copyFrom(buffer)).build());
                 final long t2 = System.currentTimeMillis();
                 LOGGER.info(String.format("[Query %s] Lines: %d", influxDBQuery.getQueryId(), tsdbQueryResponse.getFluxQueryResponse().toStringUtf8().chars().filter(c -> c == '\n').count()));
                 managedChannel.shutdown();

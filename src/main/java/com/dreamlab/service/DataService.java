@@ -35,6 +35,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -279,29 +284,39 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
     @Override
     public void execTSDBQueryLocal(TSDBQueryRequest request, StreamObserver<TSDBQueryResponse> responseObserver) {
         LOGGER.info(LOGGER.getName() + String.format("Executing Flux Query on ", fogId));
+        LOGGER.info(LOGGER.getName() + request.getFluxQueryList());
         final long start = System.currentTimeMillis();
-        String fluxQuery = request.getFluxQuery().toStringUtf8();
-        LOGGER.info(LOGGER.getName() + fluxQuery);
 
         TSDBQueryResponse.Builder responseBuilder = TSDBQueryResponse.newBuilder();
-        final long t1 = System.currentTimeMillis();
+        List<Future<String>> futureList = new ArrayList<>();
+        final long t3 = System.currentTimeMillis();
         try {
-            final String[] response = {null};
-            RetryOperation.doWithRetry(1, new Operation() {
-                @Override
-                public void doIt() {
-                    response[0] = queryApi.queryRaw(fluxQuery);
-                }
-            });
-//            String response = queryApi.queryRaw(fluxQuery);
-            final long t2 = System.currentTimeMillis();
-            LOGGER.info(String.format("%s[Outer] InfluxDB.queryRaw: %d", LOGGER.getName(), (t2 - t1)));
-            LOGGER.info(LOGGER.getName() + "InfluxDB Response " + response[0]);
-            responseBuilder.setFluxQueryResponse(ByteString.copyFromUtf8(response[0]));
+            ExecutorService executorService = Executors.newFixedThreadPool(Constants.N_THREADS);
+            for (ByteString query : request.getFluxQueryList()) {
+                String fluxQuery = query.toStringUtf8();
+                final String[] response = {null};
+                futureList.add(executorService.submit(() -> queryApi.queryRaw(fluxQuery)));
+            }
+            executorService.shutdown();
+            executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        catch (Exception ex) {
-            throw new RuntimeException(ex);
+        final long t4 = System.currentTimeMillis();
+        LOGGER.info(String.format("%s[Outer] InfluxDB.forEach.queryRaw: %d", LOGGER.getName(), (t4 - t3)));
+
+        StringBuilder responseBuffer = new StringBuilder();
+        for (Future<String> future : futureList) {
+            try {
+                responseBuffer.append(future.get());
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+                throw new RuntimeException(e);
+            }
         }
+
+        responseBuilder.setFluxQueryResponse(ByteString.copyFromUtf8(responseBuffer.toString()));
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Inner] DataServer.execTSDBQueryLocal: %d", LOGGER.getName(), (end - start)));
 

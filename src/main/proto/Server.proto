@@ -144,7 +144,7 @@ message BlockReplica {
 }
 
 message TSDBQueryRequest {
-  bytes fluxQuery = 1;
+  repeated bytes fluxQuery = 1;
 }
 
 message TSDBQueryResponse {
