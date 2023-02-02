@@ -64,6 +64,7 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
     public void putBlockAndMetadata(PutBlockAndMetadataRequest request, StreamObserver<BlockIdResponse> responseObserver) {
         final long startInner = System.currentTimeMillis();
         UUIDMessage blockId = request.getBlockId();
+        UUID blockUuid = Utils.getUuidFromMessage(blockId);
         PutBlockRequest.Builder putBlockRequestBuilder = PutBlockRequest.newBuilder();
         putBlockRequestBuilder.setBlockId(blockId);
         putBlockRequestBuilder.setBlockContent(request.getBlockContent());
@@ -81,19 +82,19 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
                 .withDeadlineAfter(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
                 .putBlockByMetadata(putBlockRequestBuilder.build());
         final long t2 = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Outer] CoordinatorServer.putBlockByMetadata: %d", LOGGER.getName(), (t2 - t1)));
+        LOGGER.info(String.format("%s[Outer %s] CoordinatorServer.putBlockByMetadata: %d", LOGGER.getName(), blockUuid, (t2 - t1)));
         final long t3 = System.currentTimeMillis();
         Response putMetadataResponse = coordinatorServerBlockingStub
                 .withDeadlineAfter(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
                 .putMetadata(putMetadataRequestBuilder.build());
         final long t4 = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Outer] CoordinatorServer.putMetadata: %d", LOGGER.getName(), (t4 - t3)));
+        LOGGER.info(String.format("%s[Outer %s] CoordinatorServer.putMetadata: %d", LOGGER.getName(), blockUuid, (t4 - t3)));
         BlockIdResponse.Builder blockIdResponseBuilder = BlockIdResponse.newBuilder();
         blockIdResponseBuilder.setBlockId(blockId);
         blockIdResponseBuilder.setIsSuccess(putBlockResponse.getIsSuccess() && putMetadataResponse.getIsSuccess());
 
         final long endInner = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Inner] EdgeServer.putBlockAndMetadata: %d", LOGGER.getName(), (endInner - startInner)));
+        LOGGER.info(String.format("%s[Inner %s] EdgeServer.putBlockAndMetadata: %d", LOGGER.getName(), blockUuid, (endInner - startInner)));
         responseObserver.onNext(blockIdResponseBuilder.build());
         responseObserver.onCompleted();
     }

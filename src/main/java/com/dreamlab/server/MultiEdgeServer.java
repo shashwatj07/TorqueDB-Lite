@@ -27,7 +27,7 @@ public class MultiEdgeServer {
                     .addService(new EdgeService(edgeId, edgeIp, edgePort++, heartbeatTtlSecs, fogsConfigFilePath, trajectoryFilePath))
                     .build();
             server.start();
-            System.out.printf("Edge Server [%s] started at port %d%n", edgeId, server.getPort());
+            System.out.printf("Edge Server [%s] started at port %d\n", edgeId, server.getPort());
         }
     }
 }

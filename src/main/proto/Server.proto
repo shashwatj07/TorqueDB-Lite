@@ -19,7 +19,7 @@ service DataServer {
 
   rpc storeBlockLocal (StoreBlockRequest) returns (Response);
 
-  rpc findBlocksLocal(FindBlocksRequest) returns (FindBlocksResponse);
+  rpc findBlocksLocal (FindBlocksRequest) returns (FindBlocksResponse);
 
   rpc execTSDBQueryLocal (TSDBQueryRequest) returns (TSDBQueryResponse);
 
@@ -110,6 +110,8 @@ message TimeRange {
 }
 
 message FindBlocksRequest {
+  UUIDMessage queryId = 8;
+
   optional UUIDMessage blockId = 1;
   map<string, string> metadataMap = 2;
   optional BoundingBox boundingBox = 3;
@@ -144,6 +146,7 @@ message BlockReplica {
 }
 
 message TSDBQueryRequest {
+  UUIDMessage queryId = 2;
   repeated bytes fluxQuery = 1;
 }
 

@@ -11,12 +11,13 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 public interface TSDBQuery extends Serializable {
 
     String getBucket();
 
-    String getQueryId();
+    UUID getQueryId();
 
     Join getJoin();
 

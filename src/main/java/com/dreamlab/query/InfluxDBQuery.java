@@ -3,7 +3,6 @@ package com.dreamlab.query;
 import com.dreamlab.api.Condition;
 import com.dreamlab.api.TSDBQuery;
 import com.dreamlab.constants.Cache;
-import com.dreamlab.constants.Constants;
 import com.dreamlab.constants.JoinType;
 import com.dreamlab.constants.Model;
 import com.dreamlab.constants.Operation;
@@ -29,7 +28,7 @@ public class InfluxDBQuery implements TSDBQuery, Serializable {
     public Model model = null;
     public QueryPolicy queryPolicy = null;
     public Cache cache = null;
-    private String queryId;
+    private UUID queryId;
     private String bucket;
     private LinkedHashMap<String, HashMap<String, String>> operations = new LinkedHashMap<>();
     private Join join = null;
@@ -63,8 +62,7 @@ public class InfluxDBQuery implements TSDBQuery, Serializable {
     }
 
     public void addQueryId() {
-        String uuid = UUID.randomUUID().toString();
-        this.queryId = uuid;
+        this.queryId = UUID.randomUUID();
     }
 
     public void addRange(String start, String stop) {
@@ -236,7 +234,7 @@ public class InfluxDBQuery implements TSDBQuery, Serializable {
 //        return caching;
 //    }
 
-    public String getQueryId() {
+    public UUID getQueryId() {
         return this.queryId;
     }
 

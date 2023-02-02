@@ -97,7 +97,7 @@ public class ExecuteQueries {
                 buffer.put(bstream.toByteArray());
                 buffer.flip();
                 LOGGER.info("Sending query object with query id " + influxDBQuery.getQueryId() + " from client.");
-                TSDBQueryResponse tsdbQueryResponse = coordinatorServerBlockingStub.execTSDBQuery(TSDBQueryRequest.newBuilder().addFluxQuery(ByteString.copyFrom(buffer)).build());
+                TSDBQueryResponse tsdbQueryResponse = coordinatorServerBlockingStub.execTSDBQuery(TSDBQueryRequest.newBuilder().addFluxQuery(ByteString.copyFrom(buffer)).setQueryId(Utils.getMessageFromUUID(influxDBQuery.getQueryId())).build());
                 final long t2 = System.currentTimeMillis();
                 LOGGER.info(String.format("[Query %s] Lines: %d", influxDBQuery.getQueryId(), tsdbQueryResponse.getFluxQueryResponse().toStringUtf8().chars().filter(c -> c == '\n').count()));
                 managedChannel.shutdown();

@@ -57,7 +57,7 @@ public final class InsertBlocks {
                         .withDeadlineAfter(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
                         .putBlockAndMetadata(putBlockAndMetadataRequest);
                 final long end = System.currentTimeMillis();
-                LOGGER.info("[Client] [Outer] EdgeServer.putBlockAndMetadata: " + (end - start));
+                LOGGER.info(String.format("[Client] [Outer %s] EdgeServer.putBlockAndMetadata: %d", blockId, (end - start)));
                 LOGGER.info("Success: " + Utils.getUuidFromMessage(blockIdResponse.getBlockId()));
                 final long sleepTime = interval * 1000L - (end - start);
                 Thread.sleep(sleepTime >= 0? sleepTime : 0);

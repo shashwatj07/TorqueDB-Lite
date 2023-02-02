@@ -63,7 +63,6 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
     private final InfluxDBClient influxDBClient;
     private final WriteApiBlocking writeApi;
     private final QueryApi queryApi;
-
     private final UUID fogId;
     private final String serverIp;
     private final int serverPort;
@@ -135,7 +134,8 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
 
     @Override
     public void indexMetadataLocal(IndexMetadataRequest request, StreamObserver<Response> responseObserver) {
-        LOGGER.info(LOGGER.getName() + String.format("Indexing Metadata on %s:%d", serverIp, serverPort));
+        final UUID blockId = Utils.getUuidFromMessage(request.getBlockId());
+        LOGGER.info(String.format("%s[Insert %s] Indexing Metadata on %s:%d", LOGGER.getName(), blockId, serverIp, serverPort));
         final long start = System.currentTimeMillis();
         Response.Builder responseBuilder = Response.newBuilder();
         BlockReplicaInfo blockReplicaInfo = new BlockReplicaInfo(Utils.getUuidFromMessage(request.getBlockId()));
@@ -145,7 +145,6 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 .forEach(blockReplicaInfo::addReplicaLocation);
         try {
             Map<String, String> metadataMap = request.getMetadataMapMap();
-            UUID blockId = Utils.getUuidFromMessage(request.getBlockId());
             blockIdMap.put(blockId, blockReplicaInfo);
             for (Map.Entry<String, String> entry : metadataMap.entrySet()) {
                 String key = entry.getKey();
@@ -154,8 +153,8 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 metaMap.get(key).putIfAbsent(value, new ConcurrentLinkedQueue<>());
                 metaMap.get(key).get(value).add(blockReplicaInfo);
             }
-            indexTimestamp(request.getTimeRange(), blockReplicaInfo);
-            indexS2CellIds(request.getBoundingBox(), blockReplicaInfo);
+            indexTimestamp(blockId, request.getTimeRange(), blockReplicaInfo);
+            indexS2CellIds(blockId, request.getBoundingBox(), blockReplicaInfo);
             responseBuilder.setIsSuccess(true);
         }
         catch (Exception e) {
@@ -163,14 +162,15 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
             responseBuilder.setIsSuccess(false);
         }
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Inner] DataServer.indexMetadataLocal: %d", LOGGER.getName(), (end - start)));
+        LOGGER.info(String.format("%s[Inner %s] DataServer.indexMetadataLocal: %d", LOGGER.getName(), blockId, (end - start)));
         responseObserver.onNext(responseBuilder.build());
         responseObserver.onCompleted();
     }
 
     @Override
     public void storeBlockLocal(StoreBlockRequest request, StreamObserver<Response> responseObserver) {
-        LOGGER.info(LOGGER.getName() + String.format("Storing Block on %s:%d", serverIp, serverPort));
+        final UUID blockId = Utils.getUuidFromMessage(request.getBlockId());
+        LOGGER.info(String.format("%s[Insert %s] Storing Block on %s:%d", LOGGER.getName(), blockId, serverIp, serverPort));
         blocksStoredCount++;
         final long start = System.currentTimeMillis();
         Response.Builder responseBuilder = Response.newBuilder();
@@ -184,23 +184,24 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
             }
         });
         final long t2 = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Outer] InfluxDB.writeRecord: %d", LOGGER.getName(), (t2 - t1)));
+        LOGGER.info(String.format("%s[Outer %s] InfluxDB.writeRecord: %d", LOGGER.getName(), blockId, (t2 - t1)));
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Inner] DataServer.storeBlockLocal: %d", LOGGER.getName(), (end - start)));
+        LOGGER.info(String.format("%s[Inner %s] DataServer.storeBlockLocal: %d", LOGGER.getName(), blockId, (end - start)));
         responseObserver.onNext(responseBuilder.build());
         responseObserver.onCompleted();
     }
 
     @Override
     public void findBlocksLocal(FindBlocksRequest request, StreamObserver<FindBlocksResponse> responseObserver) {
-        LOGGER.info(LOGGER.getName() + String.format("Finding Block on %s:%d", serverIp, serverPort));
+        final UUID queryId = Utils.getUuidFromMessage(request.getQueryId());
+        LOGGER.info(String.format("%s[Query %s] Finding Block on %s:%d", LOGGER.getName(), queryId, serverIp, serverPort));
         final long start = System.currentTimeMillis();
         FindBlocksResponse.Builder findBlockResponseBuilder = FindBlocksResponse.newBuilder();
         Set<BlockReplicaInfo> relevantBlocks = new HashSet<>();
         List<Instant> timeChunks = Utils.getTimeChunks(request.getTimeRange(), Constants.TIME_CHUNK_SECONDS);
         List<S2CellId> s2CellIds = Utils.getCellIds(request.getBoundingBox(), Constants.S2_CELL_LEVEL);
         if (!request.getIsAndQuery()) {
-            LOGGER.info(LOGGER.getName() + "OR Query");
+            LOGGER.info(String.format("%s[Query %s] OR Query", LOGGER.getName(), queryId));
             if (request.hasBlockId()) {
                 UUID blockId = Utils.getUuidFromMessage(request.getBlockId());
                 if (blockIdMap.containsKey(blockId)) {
@@ -223,7 +224,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
             LOGGER.info(String.valueOf(relevantBlocks.size()));
         }
         else {
-            LOGGER.info(LOGGER.getName() + "AND Query");
+            LOGGER.info(String.format("%s[Query %s] AND Query", LOGGER.getName(), queryId));
             boolean flag = false;
             if (request.hasBlockId()) {
                 LOGGER.info(LOGGER.getName() + "hasBlockId: true");
@@ -269,13 +270,12 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 relevantBlocks.retainAll(metaMap.getOrDefault(predicate.getKey(), Constants.EMPTY_MAP_STRING_LIST_REPLICA).getOrDefault(predicate.getValue(), Constants.EMPTY_LIST_REPLICA));
             }
         }
-        LOGGER.info(LOGGER.getName() + " Relevant Blocks: " + relevantBlocks.size());
         findBlockResponseBuilder.addAllBlockIdReplicasMetadata(
                 relevantBlocks.stream().map(BlockReplicaInfo::toMessage).collect(Collectors.toSet()));
         FindBlocksResponse findBlocksResponse = findBlockResponseBuilder.build();
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Inner] DataServer.findBlocksLocal: %d", LOGGER.getName(), (end - start)));
-        LOGGER.info(LOGGER.getName() + "relevantBlocks: " + relevantBlocks.size());
+        LOGGER.info(String.format("%s[Inner %s] DataServer.findBlocksLocal: %d", LOGGER.getName(), queryId, (end - start)));
+        LOGGER.info(String.format("%s[Query %s] relevantBlocks: %s", LOGGER.getName(), queryId, relevantBlocks.size()));
 //        LOGGER.info(LOGGER.getName() + "findBlocksLocal Response: " + findBlocksResponse);
         responseObserver.onNext(findBlocksResponse);
         responseObserver.onCompleted();
@@ -283,8 +283,8 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
 
     @Override
     public void execTSDBQueryLocal(TSDBQueryRequest request, StreamObserver<TSDBQueryResponse> responseObserver) {
-        LOGGER.info(LOGGER.getName() + String.format("Executing Flux Query on ", fogId));
-        LOGGER.info(LOGGER.getName() + request.getFluxQueryList());
+        final UUID queryId = Utils.getUuidFromMessage(request.getQueryId());
+        LOGGER.info(String.format("%s[Query %s] Flux Queries ", LOGGER.getName(), queryId, request.getFluxQueryList()));
         final long start = System.currentTimeMillis();
 
         TSDBQueryResponse.Builder responseBuilder = TSDBQueryResponse.newBuilder();
@@ -304,7 +304,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
             throw new RuntimeException(e);
         }
         final long t4 = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Outer] InfluxDB.forEach.queryRaw: %d", LOGGER.getName(), (t4 - t3)));
+        LOGGER.info(String.format("%s[Outer %s] InfluxDB.forEach.queryRaw: %d", LOGGER.getName(), queryId, (t4 - t3)));
 
         StringBuilder responseBuffer = new StringBuilder();
         for (Future<String> future : futureList) {
@@ -318,7 +318,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
 
         responseBuilder.setFluxQueryResponse(ByteString.copyFromUtf8(responseBuffer.toString()));
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Inner] DataServer.execTSDBQueryLocal: %d", LOGGER.getName(), (end - start)));
+        LOGGER.info(String.format("%s[Inner %s] DataServer.execTSDBQueryLocal: %d", LOGGER.getName(), queryId, (end - start)));
 
         responseObserver.onNext(responseBuilder.build());
         responseObserver.onCompleted();
@@ -373,7 +373,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         responseObserver.onCompleted();
     }
 
-    private void indexTimestamp(TimeRange timeRange, BlockReplicaInfo blockReplicaInfo) {
+    private void indexTimestamp(UUID blockId, TimeRange timeRange, BlockReplicaInfo blockReplicaInfo) {
         final long start = System.currentTimeMillis();
         Utils.getTimeChunks(timeRange, Constants.TIME_CHUNK_SECONDS)
                 .forEach(instant -> {
@@ -381,10 +381,10 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                     timeMap.get(instant).add(blockReplicaInfo);
                 });
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Local] DataServer.indexTimestamp: %d", LOGGER.getName(), (end - start)));
+        LOGGER.info(String.format("%s[Local %s] DataServer.indexTimestamp: %d", LOGGER.getName(), blockId, (end - start)));
     }
 
-    private void indexS2CellIds(BoundingBox boundingBox, BlockReplicaInfo blockReplicaInfo) {
+    private void indexS2CellIds(UUID blockId, BoundingBox boundingBox, BlockReplicaInfo blockReplicaInfo) {
         final long start = System.currentTimeMillis();
         final double minLat = boundingBox.getBottomRightLatLon().getLatitude();
         final double minLon = boundingBox.getTopLeftLatLon().getLongitude();
@@ -399,7 +399,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         }
 
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Local] DataServer.indexS2CellIds: %d", LOGGER.getName(), (end - start)));
+        LOGGER.info(String.format("%s[Local %s] DataServer.indexS2CellIds: %d", LOGGER.getName(), blockId, (end - start)));
     }
 
     public ConcurrentMap<String, ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>>> getMetaMap() {
