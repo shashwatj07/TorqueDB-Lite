@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 
 public final class Constants {
-    public static final int TIME_CHUNK_SECONDS = 10;
+    public static final int TIME_CHUNK_SECONDS = 120;
     public static final SecureRandom RANDOM = new SecureRandom();
     public static final int S2_CELL_LEVEL = 20;
     public static final String DATE_TIME_PATTERN = "uuuu-MM-dd HH-mm-ss";

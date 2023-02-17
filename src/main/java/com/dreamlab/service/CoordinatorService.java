@@ -50,6 +50,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -361,9 +362,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         final long t1 = System.currentTimeMillis();
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(3);
-            blockReplicaFogIds.forEach(replicaFogId -> {
-                executorService.submit(() -> sendBlockToDataStoreFog(replicaFogId, storeBlockRequest));
-            });
+            blockReplicaFogIds.forEach(replicaFogId -> executorService.submit(() -> sendBlockToDataStoreFog(replicaFogId, storeBlockRequest)));
             executorService.shutdown();
             executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
@@ -578,7 +577,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         Set<UUID> replicas = new HashSet<>(Set.of(randomReplica));
         o: for (UUID spatialReplica : spatialShortlist) {
             for (UUID temporalReplica : temporalShortlist) {
-                if (!spatialReplica.equals(temporalReplica) && !replicas.contains(spatialReplica)
+                if (!spatialReplica.equals(temporalReplica)
+                        && !replicas.contains(spatialReplica)
                         && !replicas.contains(temporalReplica)) {
                     replicas.add(spatialReplica);
                     replicas.add(temporalReplica);
