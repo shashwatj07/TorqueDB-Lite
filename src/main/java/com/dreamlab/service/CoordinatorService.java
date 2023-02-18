@@ -32,6 +32,8 @@ import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
+import net.jpountz.xxhash.XXHash32;
+import net.jpountz.xxhash.XXHashFactory;
 import org.json.JSONObject;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -557,7 +559,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     private Set<UUID> getTemporalShortlist(TimeRange timeRange) {
         final long start = System.currentTimeMillis();
         List<Instant> timeChunks = Utils.getTimeChunks(timeRange, Constants.TIME_CHUNK_SECONDS);
-        Set<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get(Math.abs(chunk.hashCode() % numFogs))).collect(Collectors.toSet());
+        Set<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(chunk), Constants.SEED_HASH) % numFogs))).collect(Collectors.toSet());
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Local] CoordinatorServer.getTemporalShortlist: %d", LOGGER.getName(), (end - start)));
         LOGGER.info(String.format("%s[Count] CoordinatorServer.temporalShortlist: %d", LOGGER.getName(), temporalShortlist.size()));
@@ -567,13 +569,14 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     private Set<UUID> getTemporalShortlist(String start, String end) {
         final long startTime = System.currentTimeMillis();
         List<Instant> timeChunks = Utils.getTimeChunks(start, end, Constants.TIME_CHUNK_SECONDS);
-        Set<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get(Math.abs(chunk.hashCode() % numFogs))).collect(Collectors.toSet());
+        Set<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(chunk), Constants.SEED_HASH) % numFogs))).collect(Collectors.toSet());
         final long endTime = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Local] CoordinatorServer.getTemporalShortlist: %d", LOGGER.getName(), (endTime - startTime)));
         return temporalShortlist;
     }
 
     private Set<UUID> getFogsToReplicate(UUID blockId, Set<UUID> spatialShortlist, Set<UUID> temporalShortlist, UUID randomReplica) {
+        LOGGER.info(String.format("%s[Insert] CoordinatorServer.randomReplica(%s): %s", LOGGER.getName(), blockId, randomReplica));
         Set<UUID> replicas = new HashSet<>(Set.of(randomReplica));
         o: for (UUID spatialReplica : spatialShortlist) {
             for (UUID temporalReplica : temporalShortlist) {
@@ -600,7 +603,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     }
 
     private UUID getRandomFogToReplicate(UUID blockId) {
-        return fogIds.get(Math.abs(blockId.hashCode() % numFogs));
+        return fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(blockId), Constants.SEED_HASH) % numFogs));
     }
 
     private DataServerGrpc.DataServerBlockingStub getDataStub(UUID fogId) {

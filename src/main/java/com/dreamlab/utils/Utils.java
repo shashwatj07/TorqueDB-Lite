@@ -22,12 +22,14 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.util.GeometricShapeFactory;
 
 import java.awt.geom.Point2D;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -244,5 +246,21 @@ public final class Utils {
         Object object = objectInputStream.readObject();
         objectInputStream.close();
         return object;
+    }
+
+    public static ByteBuffer serializeObject(Object obj)
+    {
+        try {
+            ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(bytesOut);
+            oos.writeObject(obj);
+            oos.flush();
+            byte[] bytes = bytesOut.toByteArray();
+            bytesOut.close();
+            oos.close();
+            return ByteBuffer.wrap(bytes);
+        } catch (IOException e) {
+            return ByteBuffer.wrap(new byte[0]);
+        }
     }
 }

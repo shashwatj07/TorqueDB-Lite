@@ -1,6 +1,8 @@
 package com.dreamlab.constants;
 
 import com.dreamlab.types.BlockReplicaInfo;
+import net.jpountz.xxhash.XXHash64;
+import net.jpountz.xxhash.XXHashFactory;
 
 import java.security.SecureRandom;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,4 +21,8 @@ public final class Constants {
     public static final ConcurrentLinkedQueue<BlockReplicaInfo> EMPTY_LIST_REPLICA = new ConcurrentLinkedQueue<>();
 
     public static final ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>> EMPTY_MAP_STRING_LIST_REPLICA = new ConcurrentHashMap<>();
+
+    public static XXHash64 XXHASH64 = XXHashFactory.fastestJavaInstance().hash64();
+
+    public static final int SEED_HASH = 0;
 }
