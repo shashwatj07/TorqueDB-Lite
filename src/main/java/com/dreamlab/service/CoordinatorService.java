@@ -520,7 +520,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     }
 
     private List<Polygon> generateVoronoiPolygons(List<FogInfo> fogDevices) {
-        final Polygon region = Utils.createPolygon(-90, 90, -180, 180);
+        final Polygon region = Utils.createPolygon(12.834, 13.1437, 77.4601, 77.784);
         List<Coordinate> coordinates = fogDevices.stream().map(Utils::getCoordinateFromFogInfo).collect(Collectors.toList());
         VoronoiDiagramBuilder diagramBuilder = new VoronoiDiagramBuilder();
         diagramBuilder.setSites(coordinates);
