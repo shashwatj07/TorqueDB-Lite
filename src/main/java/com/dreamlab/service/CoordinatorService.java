@@ -32,8 +32,6 @@ import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
-import net.jpountz.xxhash.XXHash32;
-import net.jpountz.xxhash.XXHashFactory;
 import org.json.JSONObject;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -43,7 +41,9 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.triangulate.VoronoiDiagramBuilder;
 
 import java.io.ObjectInputStream;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -52,7 +52,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -89,7 +88,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         final long start = System.currentTimeMillis();
         Set<UUID> fogIds = new HashSet<>();
         if (request.hasBlockId()) {
-            fogIds.add(getRandomFogToReplicate(Utils.getUuidFromMessage(request.getBlockId())));
+            fogIds.add(getFogHashByBlockId(Utils.getUuidFromMessage(request.getBlockId())));
         }
         if (request.hasTimeRange()) {
             fogIds.addAll(getTemporalShortlist(request.getTimeRange()));
@@ -302,7 +301,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     @Override
     public void getBlockContent(UUIDMessage request, StreamObserver<BlockContentResponse> responseObserver) {
         final long start = System.currentTimeMillis();
-        UUID randomReplica = getRandomFogToReplicate(Utils.getUuidFromMessage(request));
+        UUID randomReplica = getFogHashByBlockId(Utils.getUuidFromMessage(request));
         final long t1 = System.currentTimeMillis();
         BlockContentResponse blockContentResponse = getDataStub(randomReplica).getBlockContentLocal(request);
         final long end = System.currentTimeMillis();
@@ -325,11 +324,12 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         final TimeRange.Builder timeRangeBuilder = TimeRange.newBuilder();
         final BoundingBox.Builder boundingBoxBuilder = BoundingBox.newBuilder();
         Polygon boundingBoxPolygon = null;
+        Instant startInstant = null, endInstant = null;
         try {
             String jsonFile = request.getMetadataContent().toStringUtf8();
             JSONObject jsonObject =  new JSONObject(jsonFile);
-            Instant startInstant = Utils.getInstantFromString(jsonObject.getString(Keys.KEY_START_TIMESTAMP));
-            Instant endInstant = Utils.getInstantFromString(jsonObject.getString(Keys.KEY_END_TIMESTAMP));
+            startInstant = Utils.getInstantFromString(jsonObject.getString(Keys.KEY_START_TIMESTAMP));
+            endInstant = Utils.getInstantFromString(jsonObject.getString(Keys.KEY_END_TIMESTAMP));
             double minLatitude = jsonObject.getDouble(Keys.KEY_MIN_LATITUDE);
             double minLongitude = jsonObject.getDouble(Keys.KEY_MIN_LONGITUDE);
             double maxLatitude = jsonObject.getDouble(Keys.KEY_MAX_LATITUDE);
@@ -355,10 +355,12 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         storeBlockRequestBuilder.setBlockContent(request.getBlockContent());
         TimeRange timeRange = timeRangeBuilder.build();
 //        BoundingBox boundingBox = boundingBoxBuilder.build();
-        Set<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
-        Set<UUID> temporalShortlist = getTemporalShortlist(timeRange);
-        UUID randomReplica = getRandomFogToReplicate(blockId);
-        Set<UUID> blockReplicaFogIds = getFogsToReplicate(blockId, spatialShortlist, temporalShortlist, randomReplica);
+        List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
+        List<UUID> temporalShortlist = getTemporalShortlist(timeRange);
+        UUID randomReplica = getFogHashByBlockId(blockId);
+        UUID temporalReplica = getFogHashByTimeRange(startInstant, endInstant);
+        UUID spatialReplica = getFogHashByBoundingBox(boundingBoxPolygon);
+        Set<UUID> blockReplicaFogIds = getFogsToReplicate(blockId, spatialShortlist, temporalShortlist, randomReplica, temporalReplica, spatialReplica);
         LOGGER.info(String.format("%s[Insert %s] Replica Fogs %s", LOGGER.getName(), blockId, blockReplicaFogIds));
         StoreBlockRequest storeBlockRequest = storeBlockRequestBuilder.build();
         final long t1 = System.currentTimeMillis();
@@ -388,11 +390,12 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         final TimeRange.Builder timeRangeBuilder = TimeRange.newBuilder();
         final BoundingBox.Builder boundingBoxBuilder = BoundingBox.newBuilder();
         Polygon boundingBoxPolygon = null;
+        Instant startInstant = null, endInstant = null;
         try {
             String jsonFile = request.getMetadataContent().toStringUtf8();
             JSONObject jsonObject =  new JSONObject(jsonFile);
-            Instant startInstant = Utils.getInstantFromString(jsonObject.getString(Keys.KEY_START_TIMESTAMP));
-            Instant endInstant = Utils.getInstantFromString(jsonObject.getString(Keys.KEY_END_TIMESTAMP));
+            startInstant = Utils.getInstantFromString(jsonObject.getString(Keys.KEY_START_TIMESTAMP));
+            endInstant = Utils.getInstantFromString(jsonObject.getString(Keys.KEY_END_TIMESTAMP));
             double minLatitude = jsonObject.getDouble(Keys.KEY_MIN_LATITUDE);
             double minLongitude = jsonObject.getDouble(Keys.KEY_MIN_LONGITUDE);
             double maxLatitude = jsonObject.getDouble(Keys.KEY_MAX_LATITUDE);
@@ -432,10 +435,12 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         indexMetadataRequestBuilder.setTimeRange(timeRange);
         BoundingBox boundingBox = boundingBoxBuilder.build();
         indexMetadataRequestBuilder.setBoundingBox(boundingBox);
-        final Set<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
-        final Set<UUID> temporalShortlist = getTemporalShortlist(timeRange);
-        UUID randomReplica = getRandomFogToReplicate(blockId);
-        Set<UUID> blockReplicaFogIds = getFogsToReplicate(blockId, spatialShortlist, temporalShortlist, randomReplica);
+        final List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
+        final List<UUID> temporalShortlist = getTemporalShortlist(timeRange);
+        UUID randomReplica = getFogHashByBlockId(blockId);
+        UUID temporalReplica = getFogHashByTimeRange(startInstant, endInstant);
+        UUID spatialReplica = getFogHashByBoundingBox(boundingBoxPolygon);
+        Set<UUID> blockReplicaFogIds = getFogsToReplicate(blockId, spatialShortlist, temporalShortlist, randomReplica, temporalReplica, spatialReplica);
 //        indexMetadataRequestBuilder.putMetadataMap(Keys.KEY_REPLICA_FOGS, blockReplicaFogIds.toString());
         indexMetadataRequestBuilder.addAllReplicas(blockReplicaFogIds.stream()
                 .map(blockReplicaFogId -> Utils.getMessageFromReplica(fogPartitions.get(blockReplicaFogId)))
@@ -534,76 +539,136 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         return voronoiPolygons;
     }
 
-    private Set<UUID> getSpatialShortlist(BoundingBox boundingBox) {
+    private List<UUID> getSpatialShortlist(BoundingBox boundingBox) {
         return getSpatialShortlist(Utils.createPolygon(boundingBox));
     }
 
-    private Set<UUID> getSpatialShortlist(double minLat, double maxLat, double minLon, double maxLon) {
+    private List<UUID> getSpatialShortlist(double minLat, double maxLat, double minLon, double maxLon) {
         return getSpatialShortlist(Utils.createPolygon(minLat, maxLat, minLon, maxLon));
     }
 
-    private Set<UUID> getSpatialShortlist(String minLat, String maxLat, String minLon, String maxLon) {
+    private List<UUID> getSpatialShortlist(String minLat, String maxLat, String minLon, String maxLon) {
         return getSpatialShortlist(Double.parseDouble(minLat),
                 Double.parseDouble(maxLat), Double.parseDouble(minLon), Double.parseDouble(maxLon));
     }
 
-    private Set<UUID> getSpatialShortlist(Polygon queryPolygon) {
+    private List<UUID> getSpatialShortlist(Polygon queryPolygon) {
         final long start = System.currentTimeMillis();
-        Set<UUID> spatialShortlist =  fogPartitions.keySet().stream().filter(fogId -> fogPartitions.get(fogId).getPolygon().intersects(queryPolygon)).collect(Collectors.toSet());
+        List<UUID> spatialShortlist =  fogPartitions.keySet().stream().filter(fogId -> fogPartitions.get(fogId).getPolygon().intersects(queryPolygon)).collect(Collectors.toList());
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Local] CoordinatorServer.getSpatialShortlist: %d", LOGGER.getName(), (end - start)));
         LOGGER.info(String.format("%s[Count] CoordinatorServer.spatialShortlist: %d", LOGGER.getName(), spatialShortlist.size()));
         return spatialShortlist;
     }
 
-    private Set<UUID> getTemporalShortlist(TimeRange timeRange) {
+    private List<UUID> getTemporalShortlist(TimeRange timeRange) {
         final long start = System.currentTimeMillis();
         List<Instant> timeChunks = Utils.getTimeChunks(timeRange, Constants.TIME_CHUNK_SECONDS);
-        Set<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(chunk), Constants.SEED_HASH) % numFogs))).collect(Collectors.toSet());
+        List<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(chunk), Constants.SEED_HASH) % numFogs))).collect(Collectors.toList());
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Local] CoordinatorServer.getTemporalShortlist: %d", LOGGER.getName(), (end - start)));
         LOGGER.info(String.format("%s[Count] CoordinatorServer.temporalShortlist: %d", LOGGER.getName(), temporalShortlist.size()));
         return temporalShortlist;
     }
 
-    private Set<UUID> getTemporalShortlist(String start, String end) {
+    private List<UUID> getTemporalShortlist(String start, String end) {
         final long startTime = System.currentTimeMillis();
         List<Instant> timeChunks = Utils.getTimeChunks(start, end, Constants.TIME_CHUNK_SECONDS);
-        Set<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(chunk), Constants.SEED_HASH) % numFogs))).collect(Collectors.toSet());
+        List<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(chunk), Constants.SEED_HASH) % numFogs))).collect(Collectors.toList());
         final long endTime = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Local] CoordinatorServer.getTemporalShortlist: %d", LOGGER.getName(), (endTime - startTime)));
         return temporalShortlist;
     }
 
-    private Set<UUID> getFogsToReplicate(UUID blockId, Set<UUID> spatialShortlist, Set<UUID> temporalShortlist, UUID randomReplica) {
+    private Set<UUID> getFogsToReplicate(UUID blockId, List<UUID> spatialShortlist, List<UUID> temporalShortlist,
+                                         UUID randomReplica, UUID temporalReplica, UUID spatialReplica) {
         LOGGER.info(String.format("%s[Insert] CoordinatorServer.randomReplica(%s): %s", LOGGER.getName(), blockId, randomReplica));
         Set<UUID> replicas = new HashSet<>(Set.of(randomReplica));
-        o: for (UUID spatialReplica : spatialShortlist) {
-            for (UUID temporalReplica : temporalShortlist) {
-                if (!spatialReplica.equals(temporalReplica)
-                        && !replicas.contains(spatialReplica)
-                        && !replicas.contains(temporalReplica)) {
-                    replicas.add(spatialReplica);
-                    replicas.add(temporalReplica);
-                    LOGGER.info(String.format("%s[Insert] CoordinatorServer.spatialReplica(%s): %s", LOGGER.getName(), blockId, spatialReplica));
-                    LOGGER.info(String.format("%s[Insert] CoordinatorServer.temporalReplica(%s): %s", LOGGER.getName(), blockId, temporalReplica));
-                    break o;
+        if (replicas.contains(spatialReplica)) {
+            boolean added = false;
+            for (UUID spatialReplicaCandidate : spatialShortlist) {
+                if (!replicas.contains(spatialReplicaCandidate)) {
+                    replicas.add(spatialReplicaCandidate);
+                    spatialReplica = spatialReplicaCandidate;
+                    added = true;
+                    break;
                 }
             }
-        }
-        if (replicas.size() < 3) {
-            for (UUID anyReplica : fogIds) {
-                replicas.add(anyReplica);
-                if (replicas.size() >= 3) {
+            if (!added) {
+                for (UUID replicaCandidate : fogIds) {
+                    replicas.add(replicaCandidate);
+                    spatialReplica = replicaCandidate;
                     break;
                 }
             }
         }
+        else {
+            replicas.add(spatialReplica);
+        }
+        if (replicas.contains(temporalReplica)) {
+            boolean added = false;
+            for (UUID temporalReplicaCandidate : temporalShortlist) {
+                if (!replicas.contains(temporalReplicaCandidate)) {
+                    replicas.add(temporalReplicaCandidate);
+                    temporalReplica = temporalReplicaCandidate;
+                    added = true;
+                    break;
+                }
+            }
+            if (!added) {
+                for (UUID replicaCandidate : fogIds) {
+                    replicas.add(replicaCandidate);
+                    temporalReplica = replicaCandidate;
+                    break;
+                }
+            }
+        }
+        else {
+            replicas.add(temporalReplica);
+        }
+//        o: for (UUID spatialReplicaCandidate : spatialShortlist) {
+//            for (UUID temporalReplicaCandidate : temporalShortlist) {
+//                if (!spatialReplicaCandidate.equals(temporalReplicaCandidate)
+//                        && !replicas.contains(spatialReplicaCandidate)
+//                        && !replicas.contains(temporalReplicaCandidate)) {
+//                    replicas.add(spatialReplicaCandidate);
+//                    replicas.add(temporalReplicaCandidate);
+//                    break o;
+//                }
+//            }
+//        }
+//        if (replicas.size() < 3) {
+//            for (UUID replicaCandidate : fogIds) {
+//                replicas.add(replicaCandidate);
+//                if (replicas.size() >= 3) {
+//                    break;
+//                }
+//            }
+//        }
+        LOGGER.info(String.format("%s[Insert] CoordinatorServer.spatialReplica(%s): %s", LOGGER.getName(), blockId, spatialReplica));
+        LOGGER.info(String.format("%s[Insert] CoordinatorServer.temporalReplica(%s): %s", LOGGER.getName(), blockId, temporalReplica));
         return replicas;
     }
 
-    private UUID getRandomFogToReplicate(UUID blockId) {
+    private UUID getFogHashByBlockId(UUID blockId) {
         return fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(blockId), Constants.SEED_HASH) % numFogs));
+    }
+
+    private UUID getFogHashByBoundingBox(Polygon boundingBox) {
+        org.locationtech.jts.geom.Point centroid = boundingBox.getCentroid();
+        for (Map.Entry<UUID, FogPartition> entry : fogPartitions.entrySet()) {
+            if (entry.getValue().getPolygon().intersects(centroid)) {
+                return entry.getKey();
+            }
+        }
+        return fogIds.get(0);
+    }
+
+    private UUID getFogHashByTimeRange(Instant startInstant, Instant endInstant) {
+        Duration duration = Duration.between(startInstant, endInstant);
+        Instant midInstant = startInstant.plus(duration.toMillis() / 2, ChronoUnit.MILLIS);
+        Instant midChunk = Instant.ofEpochSecond(midInstant.getEpochSecond() - ((midInstant.getEpochSecond() - Instant.MIN.getEpochSecond()) % Constants.TIME_CHUNK_SECONDS));
+        return fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(midChunk), Constants.SEED_HASH) % numFogs));
     }
 
     private DataServerGrpc.DataServerBlockingStub getDataStub(UUID fogId) {
