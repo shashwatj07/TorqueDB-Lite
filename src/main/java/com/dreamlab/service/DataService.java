@@ -57,8 +57,8 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
 
     private static String BACKUP_DIR_PATH = "/home/ultraviolet/experiments/backup";
     private final ConcurrentMap<String, ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>>> metaMap;
-    private final ConcurrentMap<Instant, ConcurrentLinkedQueue<BlockReplicaInfo>> timeMap;
-    private final ConcurrentMap<S2CellId, ConcurrentLinkedQueue<BlockReplicaInfo>> geoMap;
+    private final ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>> timeMap;
+    private final ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>> geoMap;
     private final ConcurrentMap<UUID, BlockReplicaInfo> blockIdMap;
     private final InfluxDBClient influxDBClient;
     private final WriteApiBlocking writeApi;
@@ -103,19 +103,19 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         }
         metaMap = metaMapLocal;
 
-        ConcurrentMap<Instant, ConcurrentLinkedQueue<BlockReplicaInfo>> timeMapLocal;
+        ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>> timeMapLocal;
         try {
             Object map = Utils.readObjectFromFile(String.format("%s/%s/timeMap", BACKUP_DIR_PATH, fogId));
-            timeMapLocal = new ConcurrentHashMap<>((ConcurrentHashMap<Instant, ConcurrentLinkedQueue<BlockReplicaInfo>>) map);
+            timeMapLocal = new ConcurrentHashMap<>((ConcurrentHashMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>>) map);
         } catch (Exception ex) {
             timeMapLocal = new ConcurrentHashMap<>();
         }
         timeMap = timeMapLocal;
 
-        ConcurrentMap<S2CellId, ConcurrentLinkedQueue<BlockReplicaInfo>> geoMapLocal;
+        ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>> geoMapLocal;
         try {
             Object map = Utils.readObjectFromFile(String.format("%s/%s/geoMap", BACKUP_DIR_PATH, fogId));
-            geoMapLocal = new ConcurrentHashMap<>((ConcurrentHashMap<S2CellId, ConcurrentLinkedQueue<BlockReplicaInfo>>) map);
+            geoMapLocal = new ConcurrentHashMap<>((ConcurrentHashMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>>) map);
         } catch (Exception ex) {
             geoMapLocal = new ConcurrentHashMap<>();
         }
@@ -210,12 +210,12 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
             }
             if (request.hasTimeRange()) {
                 for (Instant timeChunk : timeChunks) {
-                    relevantBlocks.addAll(timeMap.getOrDefault(timeChunk, Constants.EMPTY_LIST_REPLICA));
+                    relevantBlocks.addAll(timeMap.getOrDefault(timeChunk.toString(), Constants.EMPTY_LIST_REPLICA));
                 }
             }
             if (request.hasBoundingBox()) {
                 for (S2CellId s2CellId : s2CellIds) {
-                    relevantBlocks.addAll(geoMap.getOrDefault(s2CellId, Constants.EMPTY_LIST_REPLICA));
+                    relevantBlocks.addAll(geoMap.getOrDefault(s2CellId.toToken(), Constants.EMPTY_LIST_REPLICA));
                 }
             }
             for (Map.Entry<String, String> predicate : request.getMetadataMapMap().entrySet()) {
@@ -239,14 +239,14 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 if (flag) {
                     Set<BlockReplicaInfo> timeBlocks = new HashSet<>();
                     for (Instant timeChunk : timeChunks) {
-                        timeBlocks.addAll(timeMap.getOrDefault(timeChunk, Constants.EMPTY_LIST_REPLICA));
+                        timeBlocks.addAll(timeMap.getOrDefault(timeChunk.toString(), Constants.EMPTY_LIST_REPLICA));
                     }
                     relevantBlocks.retainAll(timeBlocks);
                 }
                 else {
                     flag = true;
                     for (Instant timeChunk : timeChunks) {
-                        relevantBlocks.addAll(timeMap.getOrDefault(timeChunk, Constants.EMPTY_LIST_REPLICA));
+                        relevantBlocks.addAll(timeMap.getOrDefault(timeChunk.toString(), Constants.EMPTY_LIST_REPLICA));
                     }
                 }
                 LOGGER.info(LOGGER.getName() + " Relevant Blocks so far: " + relevantBlocks.size());
@@ -256,13 +256,13 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 if (flag) {
                     Set<BlockReplicaInfo> geoBlocks = new HashSet<>();
                     for (S2CellId s2CellId : s2CellIds) {
-                        geoBlocks.addAll(geoMap.getOrDefault(s2CellId, Constants.EMPTY_LIST_REPLICA));
+                        geoBlocks.addAll(geoMap.getOrDefault(s2CellId.toToken(), Constants.EMPTY_LIST_REPLICA));
                     }
                     relevantBlocks.retainAll(geoBlocks);
                 }
                 else {
                     for (S2CellId s2CellId : s2CellIds) {
-                        relevantBlocks.addAll(geoMap.getOrDefault(s2CellId, Constants.EMPTY_LIST_REPLICA));
+                        relevantBlocks.addAll(geoMap.getOrDefault(s2CellId.toToken(), Constants.EMPTY_LIST_REPLICA));
                     }
                 }
             }
@@ -377,8 +377,8 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         final long start = System.currentTimeMillis();
         Utils.getTimeChunks(timeRange, Constants.TIME_CHUNK_SECONDS)
                 .forEach(instant -> {
-                    timeMap.putIfAbsent(instant, new ConcurrentLinkedQueue<>());
-                    timeMap.get(instant).add(blockReplicaInfo);
+                    timeMap.putIfAbsent(instant.toString(), new ConcurrentLinkedQueue<>());
+                    timeMap.get(instant.toString()).add(blockReplicaInfo);
                 });
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Local %s] DataServer.indexTimestamp: %d", LOGGER.getName(), blockId, (end - start)));
@@ -394,8 +394,8 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         Iterable<S2CellId> cellIds = Utils.getCellIds(minLat, minLon, maxLat, maxLon, Constants.S2_CELL_LEVEL);
 
         for (S2CellId s2CellId : cellIds) {
-            geoMap.putIfAbsent(s2CellId, new ConcurrentLinkedQueue<>());
-            geoMap.get(s2CellId).add(blockReplicaInfo);
+            geoMap.putIfAbsent(s2CellId.toToken(), new ConcurrentLinkedQueue<>());
+            geoMap.get(s2CellId.toToken()).add(blockReplicaInfo);
         }
 
         final long end = System.currentTimeMillis();
@@ -406,11 +406,11 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         return metaMap;
     }
 
-    public ConcurrentMap<Instant, ConcurrentLinkedQueue<BlockReplicaInfo>> getTimeMap() {
+    public ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>> getTimeMap() {
         return timeMap;
     }
 
-    public ConcurrentMap<S2CellId, ConcurrentLinkedQueue<BlockReplicaInfo>> getGeoMap() {
+    public ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>> getGeoMap() {
         return geoMap;
     }
 

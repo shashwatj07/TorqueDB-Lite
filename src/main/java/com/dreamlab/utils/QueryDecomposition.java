@@ -265,9 +265,8 @@ public class QueryDecomposition {
                                         .append(")");
                             } else {
                                 aggwin_shortCircuit = 1;
-                                query.append("|>aggregateWindow(every:").append(every).append(",fn:").append(fn)
-                                        .append(
-                                                ")");
+                                query.append("|>aggregateWindow(every:")
+                                        .append(every).append(",fn:").append(fn).append(")");
                             }
                             break;
                         case "add_mean":
