@@ -258,7 +258,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         for (UUID fogId : fogsToQuery) {
             fogQueries.putIfAbsent(fogId, influxDBQuery);
         }
-        QueryDecomposition queryDecomposition = new QueryDecomposition();
+        QueryDecomposition queryDecomposition = new QueryDecomposition(LOGGER);
         CostModelOutput costModelOutput = queryDecomposition.l21decompose(fogQueries, plan);
         System.out.println("L2: " + costModelOutput.perFogLevel2Query);
         LOGGER.info(String.format("%s[Count %s] CoordinatorServer.execTSDBQueryLocal: %d", LOGGER.getName(), influxDBQuery.getQueryId(), costModelOutput.perFogLevel2Query.size()));

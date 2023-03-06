@@ -30,7 +30,11 @@ public class QueryDecomposition {
 
     DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
 
-    Logger logger = Logger.getLogger(QueryDecomposition.class.getName());
+    Logger LOGGER;
+
+    public QueryDecomposition(Logger logger) {
+        LOGGER = logger;
+    }
 
     public Map<String, Map<String, String>> getL21Mapping(Model model) {
         Map<String, String> range = new HashMap<>();
@@ -117,6 +121,7 @@ public class QueryDecomposition {
                     temp_mbids.add(execPlan.getBlockId());
                 }
             }
+            LOGGER.info(String.format("%s[Count %s] CoordinatorServer.blocksPerFog: %d", LOGGER.getName(), perFogQuery.get(i).getQueryId(), temp_mbids.size()));
             System.out.println("# Blocks Per Query: " + temp_mbids.size());
             final int num_blocks_per_query = 150;
             for (int n = 0; n < temp_mbids.size(); n += num_blocks_per_query) {
