@@ -157,7 +157,7 @@ public class QueryDecomposition {
                                     .append(", maxLat: ").append(region.get("maxLat"))
                                     .append(", minLon: ").append(region.get("minLon"))
                                     .append(", maxLon: ").append(region.get("maxLon"))
-                                    .append(" }, strict: false)");
+                                    .append(" }, strict: true)");
                             break;
                         case "add_filter":
                             query.append("|> filter(fn: (r)=>");
