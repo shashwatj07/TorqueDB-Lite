@@ -24,9 +24,10 @@ public final class InsertBlocksIntoBucket {
     }
 
     public static void main(String... args) {
-        final String bucket = args[0];
-        final String token = args[1];
-        final String blocksDirectory = args[2];
+        final String host = args[0];
+        final String bucket = args[1];
+        final String token = args[2];
+        final String blocksDirectory = args[3];
         LOGGER.info("Inserting blocks to " + bucket);
         final File blocksDir = new File(blocksDirectory);
         OkHttpClient.Builder okHttpClient = new OkHttpClient.Builder()
@@ -37,7 +38,7 @@ public final class InsertBlocksIntoBucket {
         InfluxDBClientOptions influxDBClientOptions = InfluxDBClientOptions.builder()
                 .authenticateToken(token.toCharArray())
                 .org("org")
-                .connectionString("http://localhost:8086?readTimeout=60m&connectTimeout=60m&writeTimeout=60m") // ?readTimeout=1m&connectTimeout=1m&writeTimeout=1m
+                .connectionString(String.format("http://%s:8086?readTimeout=60m&connectTimeout=60m&writeTimeout=60m", host)) // ?readTimeout=1m&connectTimeout=1m&writeTimeout=1m
                 .okHttpClient(okHttpClient)
                 .logLevel(LogLevel.BASIC)
                 .bucket("bucket")
@@ -54,7 +55,7 @@ public final class InsertBlocksIntoBucket {
                     final long start = System.currentTimeMillis();
                     writeApi.writeRecord(WritePrecision.MS, Utils.getBytes(block).toStringUtf8());
                     final long end = System.currentTimeMillis();
-                    System.out.println(end - start);
+                    System.out.println(block + " " + (end - start));
                 }
                 catch (Exception ex) {
                     LOGGER.info("Failed to insert block");
