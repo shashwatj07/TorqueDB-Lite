@@ -256,6 +256,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 if (flag) {
                     Set<BlockReplicaInfo> geoBlocks = new HashSet<>();
                     for (S2CellId s2CellId : s2CellIds) {
+                        LOGGER.info(geoMap.get(s2CellId.toToken()).toString());
                         geoBlocks.addAll(geoMap.getOrDefault(s2CellId.toToken(), Constants.EMPTY_LIST_REPLICA));
                     }
                     relevantBlocks.retainAll(geoBlocks);

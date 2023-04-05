@@ -204,8 +204,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                                             .setLongitude(Double.parseDouble(region.get("minLon")))
                                             .build())
                             .build());
-            LOGGER.info(String.format("%s[Query %s] CoordinatorServer.spatialShortlist: %s", LOGGER.getName(), influxDBQuery.getQueryId(), spatialShortlist));
             spatialShortlist.addAll(getSpatialShortlist(findBlocksRequestBuilder.getBoundingBox()));
+            LOGGER.info(String.format("%s[Query %s] CoordinatorServer.spatialShortlist: %s", LOGGER.getName(), influxDBQuery.getQueryId(), spatialShortlist));
         }
         FindBlocksRequest findBlocksRequest = findBlocksRequestBuilder.build();
 
@@ -578,6 +578,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         List<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(chunk), Constants.SEED_HASH) % numFogs))).collect(Collectors.toList());
         final long endTime = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Local] CoordinatorServer.getTemporalShortlist: %d", LOGGER.getName(), (endTime - startTime)));
+        LOGGER.info(String.format("%s[Count] CoordinatorServer.temporalShortlist: %d", LOGGER.getName(), temporalShortlist.size()));
         return temporalShortlist;
     }
 
