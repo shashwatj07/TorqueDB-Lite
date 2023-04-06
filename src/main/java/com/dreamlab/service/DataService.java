@@ -236,35 +236,32 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
             }
             if (request.hasTimeRange()) {
                 LOGGER.info(LOGGER.getName() + "hasTimeRange: true");
+                Set<BlockReplicaInfo> timeBlocks = new HashSet<>();
+                for (Instant timeChunk : timeChunks) {
+                    timeBlocks.addAll(timeMap.getOrDefault(timeChunk.toString(), Constants.EMPTY_LIST_REPLICA));
+                }
+                LOGGER.info(LOGGER.getName() + "timeBlocks " + timeBlocks);
                 if (flag) {
-                    Set<BlockReplicaInfo> timeBlocks = new HashSet<>();
-                    for (Instant timeChunk : timeChunks) {
-                        timeBlocks.addAll(timeMap.getOrDefault(timeChunk.toString(), Constants.EMPTY_LIST_REPLICA));
-                    }
                     relevantBlocks.retainAll(timeBlocks);
                 }
                 else {
                     flag = true;
-                    for (Instant timeChunk : timeChunks) {
-                        relevantBlocks.addAll(timeMap.getOrDefault(timeChunk.toString(), Constants.EMPTY_LIST_REPLICA));
-                    }
+                    relevantBlocks.addAll(timeBlocks);
                 }
                 LOGGER.info(LOGGER.getName() + " Relevant Blocks so far: " + relevantBlocks.size());
             }
             if (request.hasBoundingBox()) {
                 LOGGER.info(LOGGER.getName() + "hasBoundingBox: true");
+                Set<BlockReplicaInfo> geoBlocks = new HashSet<>();
+                for (S2CellId s2CellId : s2CellIds) {
+                    geoBlocks.addAll(geoMap.getOrDefault(s2CellId.toToken(), Constants.EMPTY_LIST_REPLICA));
+                }
+                LOGGER.info(LOGGER.getName() + "geoBlocks " + geoBlocks);
                 if (flag) {
-                    Set<BlockReplicaInfo> geoBlocks = new HashSet<>();
-                    for (S2CellId s2CellId : s2CellIds) {
-                        LOGGER.info(geoMap.get(s2CellId.toToken()).toString());
-                        geoBlocks.addAll(geoMap.getOrDefault(s2CellId.toToken(), Constants.EMPTY_LIST_REPLICA));
-                    }
                     relevantBlocks.retainAll(geoBlocks);
                 }
                 else {
-                    for (S2CellId s2CellId : s2CellIds) {
-                        relevantBlocks.addAll(geoMap.getOrDefault(s2CellId.toToken(), Constants.EMPTY_LIST_REPLICA));
-                    }
+                    relevantBlocks.addAll(geoBlocks);
                 }
             }
             for (Map.Entry<String, String> predicate : request.getMetadataMapMap().entrySet()) {

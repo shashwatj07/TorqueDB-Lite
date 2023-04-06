@@ -95,7 +95,9 @@ public final class Utils {
                 .setMinLevel(s2CellLevel)
                 .setMaxCells(Integer.MAX_VALUE)
                 .build();
-        return s2RegionCoverer.getCovering(s2LatLngRect).cellIds();
+        ArrayList<S2CellId> s2CellIds = s2RegionCoverer.getCovering(s2LatLngRect).cellIds();
+        s2RegionCoverer.getCovering(s2LatLngRect, s2CellIds);
+        return s2CellIds;
     }
 
     public static boolean isNumeric(String str) {
@@ -214,8 +216,10 @@ public final class Utils {
     }
 
     public static Polygon createPolygon(BoundingBox boundingBox) {
-        return createPolygon(boundingBox.getBottomRightLatLon().getLatitude(), boundingBox.getTopLeftLatLon().getLatitude(),
-                boundingBox.getTopLeftLatLon().getLongitude(), boundingBox.getBottomRightLatLon().getLatitude());
+        return createPolygon(Math.max(boundingBox.getBottomRightLatLon().getLatitude(), Constants.MIN_LAT),
+                Math.min(boundingBox.getTopLeftLatLon().getLatitude(), Constants.MAX_LAT),
+                Math.max(boundingBox.getTopLeftLatLon().getLongitude(), Constants.MIN_LON),
+                Math.min(boundingBox.getBottomRightLatLon().getLatitude(), Constants.MAX_LON));
     }
 
     public static Polygon createPolygon(double minLat, double maxLat, double minLon, double maxLon){
