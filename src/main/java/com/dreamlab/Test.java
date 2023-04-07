@@ -32,7 +32,7 @@ public class Test {
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         fogPartitions = generateFogPartitions(new ArrayList<>(Utils.readFogDetails("C:\\Users\\Shashwat\\TorqueDB-Lite\\src\\main\\resources\\fogs20.json").values()));
-        double minLon=77.4520995, maxLat=12.962299, minLat=12.912298999999999, maxLon=77.50209950000001;
+        double minLon=77.4586565, maxLat=12.862230000000002, minLat=12.85223, maxLon=77.4686565;
         BoundingBox boundingBox = BoundingBox
                 .newBuilder()
                 .setBottomRightLatLon(

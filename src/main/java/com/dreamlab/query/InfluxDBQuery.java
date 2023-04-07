@@ -65,6 +65,10 @@ public class InfluxDBQuery implements TSDBQuery, Serializable {
         this.queryId = UUID.randomUUID();
     }
 
+    public void addQueryId(String queryId) {
+        this.queryId = UUID.fromString(queryId);
+    }
+
     public void addRange(String start, String stop) {
         HashMap<String, String> rangeMap = new HashMap<>();
         rangeMap.put("start", start);
