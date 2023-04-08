@@ -18,7 +18,9 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +38,9 @@ public class QueryBlocksFromBucket {
         final String bucket = args[1];
         final String token = args[2];
         final String queryFilePath = args[3];
+        final String workload = args[4];
+        final int numClients = Integer.parseInt(args[5]);
+        final int index = Integer.parseInt(args[6]);
         OkHttpClient.Builder okHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
                 .writeTimeout(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
@@ -57,33 +62,35 @@ public class QueryBlocksFromBucket {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        for(String workload : jsonObject.keySet()) {
-            JSONObject queries = (JSONObject) jsonObject.get(workload);
-            for (String queryId : queries.keySet()) {
-                JSONObject params = (JSONObject) queries.get(queryId);
-                InfluxDBQuery influxDBQuery = new InfluxDBQuery();
-                influxDBQuery.addQueryId();
-                influxDBQuery.addRegion(params.getString("minLat"), params.getString("maxLat"), params.getString("minLon"), params.getString("maxLon"));
-                influxDBQuery.addFilter("pollution", List.of(), List.of());
-                String start = params.getString("start");
-                String end = params.getString("stop");
-                Instant startInstant = Utils.getInstantFromString(start);
-                Instant endInstant = Utils.getInstantFromString(end);
+        JSONObject queries = (JSONObject) jsonObject.get(workload);
+        List<String> queryIds = new ArrayList<>(queries.keySet());
+        int numQueries = queries.keySet().size() / numClients;
+        Collections.sort(queryIds);
+        queryIds = queryIds.subList((index - 1) * numQueries, index * numQueries);
+        for (String queryId : queryIds) {
+            JSONObject params = (JSONObject) queries.get(queryId);
+            InfluxDBQuery influxDBQuery = new InfluxDBQuery();
+            influxDBQuery.addQueryId();
+            influxDBQuery.addRegion(params.getString("minLat"), params.getString("maxLat"), params.getString("minLon"), params.getString("maxLon"));
+            influxDBQuery.addFilter("pollution", List.of(), List.of());
+            String start = params.getString("start");
+            String end = params.getString("stop");
+            Instant startInstant = Utils.getInstantFromString(start);
+            Instant endInstant = Utils.getInstantFromString(end);
 //                startInstant = startInstant.minus(330, ChronoUnit.MINUTES);
 //                endInstant = endInstant.minus(330, ChronoUnit.MINUTES);
-                influxDBQuery.addRange(Utils.getStringFromInstant(startInstant), Utils.getStringFromInstant(endInstant));
-                influxDBQuery.addBucketName(bucket);
-                influxDBQuery.addKeep(Arrays.asList("_value", "_time"));
-                System.out.println(getFluxQuery(influxDBQuery));
-                try {
-                    long startTime = System.currentTimeMillis();
-                    queryApi.queryRaw(getFluxQuery(influxDBQuery));
-                    long endTime = System.currentTimeMillis();
-                    System.out.println(queryId + " " + (endTime-startTime));
-                }
-                catch (Exception ex) {
-                    System.out.println(queryId + " Failed");
-                }
+            influxDBQuery.addRange(Utils.getStringFromInstant(startInstant), Utils.getStringFromInstant(endInstant));
+            influxDBQuery.addBucketName(bucket);
+            influxDBQuery.addKeep(Arrays.asList("_value", "_time"));
+            System.out.println(getFluxQuery(influxDBQuery));
+            try {
+                long startTime = System.currentTimeMillis();
+                queryApi.queryRaw(getFluxQuery(influxDBQuery));
+                long endTime = System.currentTimeMillis();
+                System.out.println(queryId + " " + (endTime-startTime));
+            }
+            catch (Exception ex) {
+                System.out.println(queryId + " Failed");
             }
         }
     }
