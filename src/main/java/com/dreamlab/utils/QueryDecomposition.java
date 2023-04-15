@@ -13,6 +13,8 @@ import org.apache.commons.lang3.StringUtils;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -129,8 +131,17 @@ public class QueryDecomposition {
                 TSDBQuery TempQu = perFogQuery.get(i);
                 query.append("import \"experimental/geo\"\n");
                 query.append("from(bucket:\"").append(TempQu.getBucket()).append("\")");
-
-                for (String j : TempQu.getOperations().keySet()) {
+                List<String> keys = new ArrayList<>(TempQu.getOperations().keySet());
+                Collections.sort(keys, (k1, k2) -> {
+                    if ("range".equals(k1)) return -1;
+                    if ("range".equals(k2)) return 1;
+                    if ("filter".equals(k1)) return -1;
+                    if ("filter".equals(k2)) return 1;
+                    if ("region".equals(k1)) return -1;
+                    if ("region".equals(k2)) return 1;
+                    return k1.compareTo(k2);
+                });
+                for (String j : keys) {
                     if (j.equals("transform")) {
                         j = TempQu.getOperations().get("transform").keySet().toArray()[0].toString();
                     }
