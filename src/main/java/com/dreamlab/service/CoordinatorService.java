@@ -29,9 +29,15 @@ import com.dreamlab.utils.CostModel;
 import com.dreamlab.utils.QueryDecomposition;
 import com.dreamlab.utils.Utils;
 import com.google.protobuf.ByteString;
+import com.influxdb.LogLevel;
+import com.influxdb.client.InfluxDBClient;
+import com.influxdb.client.InfluxDBClientFactory;
+import com.influxdb.client.InfluxDBClientOptions;
+import com.influxdb.client.QueryApi;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
+import okhttp3.OkHttpClient;
 import org.json.JSONObject;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -72,6 +78,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     private final Map<UUID, FogPartition> fogPartitions;
     private final List<UUID> fogIds;
     private final ConcurrentMap<UUID, DataServerGrpc.DataServerBlockingStub> dataStubs;
+    private final ConcurrentMap<UUID, QueryApi> dataQueryApis;
 
     public CoordinatorService(UUID fogId, Map<UUID, FogInfo> fogDetails) {
         LOGGER = Logger.getLogger(String.format("[Fog: %s] ", fogId.toString()));
@@ -81,20 +88,22 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         fogIds = new ArrayList<>(fogDetails.keySet());
         Collections.sort(fogIds);
         dataStubs = new ConcurrentHashMap<>();
+        dataQueryApis = new ConcurrentHashMap<>();
     }
 
     @Override
     public void findBlocks(FindBlocksRequest request, StreamObserver<FindBlocksResponse> responseObserver) {
         final long start = System.currentTimeMillis();
         Set<UUID> fogIds = new HashSet<>();
+        UUID queryId = Utils.getUuidFromMessage(request.getQueryId());
         if (request.hasBlockId()) {
             fogIds.add(getFogHashByBlockId(Utils.getUuidFromMessage(request.getBlockId())));
         }
         if (request.hasTimeRange()) {
-            fogIds.addAll(getTemporalShortlist(request.getTimeRange()));
+            fogIds.addAll(getTemporalShortlist(request.getTimeRange(), queryId));
         }
         if (request.hasBoundingBox()) {
-            fogIds.addAll(getSpatialShortlist(request.getBoundingBox()));
+            fogIds.addAll(getSpatialShortlist(request.getBoundingBox(), queryId));
         }
 
         List<Future<FindBlocksResponse>> futures = new ArrayList<>();
@@ -120,7 +129,6 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                 e.printStackTrace();
                 throw new RuntimeException(e);
             }
-
         }
 
 //        Set<BlockIdReplicaMetadata> responseSet = new HashSet<>();
@@ -184,7 +192,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                                     .setEndTimestamp(Utils.getTimestampMessageFromInstant(Utils.getInstantFromString(range.get("stop"))))
                                     .build()
                     );
-            temporalShortlist.addAll(getTemporalShortlist(range.get("start"), range.get("stop")));
+            temporalShortlist.addAll(getTemporalShortlist(range.get("start"), range.get("stop"), influxDBQuery.getQueryId()));
             LOGGER.info(String.format("%s[Query %s] CoordinatorServer.temporalShortlist: %s", LOGGER.getName(), influxDBQuery.getQueryId(), temporalShortlist));
         }
         if (influxDBQuery.getOperations().containsKey("region")) {
@@ -204,7 +212,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                                             .setLongitude(Double.parseDouble(region.get("minLon")))
                                             .build())
                             .build());
-            spatialShortlist.addAll(getSpatialShortlist(findBlocksRequestBuilder.getBoundingBox()));
+            spatialShortlist.addAll(getSpatialShortlist(findBlocksRequestBuilder.getBoundingBox(), influxDBQuery.getQueryId()));
             LOGGER.info(String.format("%s[Query %s] CoordinatorServer.spatialShortlist: %s", LOGGER.getName(), influxDBQuery.getQueryId(), spatialShortlist));
         }
         FindBlocksRequest findBlocksRequest = findBlocksRequestBuilder.build();
@@ -259,18 +267,21 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             fogQueries.putIfAbsent(fogId, influxDBQuery);
         }
         QueryDecomposition queryDecomposition = new QueryDecomposition(LOGGER);
+        long n1 = System.currentTimeMillis();
         CostModelOutput costModelOutput = queryDecomposition.l21decompose(fogQueries, plan);
+        long n2 = System.currentTimeMillis();
+        LOGGER.info(String.format("%s[Local %s] CoordinatorServer.queryDecomposition: %d", LOGGER.getName(), influxDBQuery.getQueryId(), (n2 - n1)));
+
         System.out.println("L2: " + costModelOutput.perFogLevel2Query);
         LOGGER.info(String.format("%s[Count %s] CoordinatorServer.execTSDBQueryLocal: %d", LOGGER.getName(), influxDBQuery.getQueryId(), costModelOutput.perFogLevel2Query.size()));
 
-        List<Future<TSDBQueryResponse>> futureList = new ArrayList<>();
+        List<Future<String>> futureList = new ArrayList<>();
         final long t3 = System.currentTimeMillis();
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(Constants.N_THREADS);
             for (Map.Entry<UUID, List<String>> entry : costModelOutput.perFogLevel2Query.entrySet()) {
                 for (String query : entry.getValue()) {
-                    futureList.add(executorService.submit(() -> execTSDBQueryOnDataStoreFog(entry.getKey(),
-                            TSDBQueryRequest.newBuilder().addFluxQuery(ByteString.copyFromUtf8(query)).setQueryId(request.getQueryId()).build())));
+                    futureList.add(executorService.submit(() -> execTSDBQueryOnDataStoreFog(entry.getKey(), Utils.getUuidFromMessage(request.getQueryId()), query)));
                 }
             }
             executorService.shutdown();
@@ -283,9 +294,9 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         LOGGER.info(String.format("%s[Outer %s] CoordinatorServer.forEach.execTSDBQueryLocal: %d", LOGGER.getName(), influxDBQuery.getQueryId(), (t4 - t3)));
 
         StringBuilder responseBuffer = new StringBuilder();
-        for (Future<TSDBQueryResponse> future : futureList) {
+        for (Future<String> future : futureList) {
             try {
-                responseBuffer.append(future.get().getFluxQueryResponse().toStringUtf8());
+                responseBuffer.append(future.get());
             } catch (InterruptedException | ExecutionException e) {
                 e.printStackTrace();
 //                throw new RuntimeException(e);
@@ -356,8 +367,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         storeBlockRequestBuilder.setBlockContent(request.getBlockContent());
         TimeRange timeRange = timeRangeBuilder.build();
 //        BoundingBox boundingBox = boundingBoxBuilder.build();
-        List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
-        List<UUID> temporalShortlist = getTemporalShortlist(timeRange);
+        List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon, blockId);
+        List<UUID> temporalShortlist = getTemporalShortlist(timeRange, blockId);
         UUID randomReplica = getFogHashByBlockId(blockId);
         UUID temporalReplica = getFogHashByTimeRange(startInstant, endInstant);
         UUID spatialReplica = getFogHashByBoundingBox(boundingBoxPolygon);
@@ -436,8 +447,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         indexMetadataRequestBuilder.setTimeRange(timeRange);
         BoundingBox boundingBox = boundingBoxBuilder.build();
         indexMetadataRequestBuilder.setBoundingBox(boundingBox);
-        final List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon);
-        final List<UUID> temporalShortlist = getTemporalShortlist(timeRange);
+        final List<UUID> spatialShortlist = getSpatialShortlist(boundingBoxPolygon, blockId);
+        final List<UUID> temporalShortlist = getTemporalShortlist(timeRange, blockId);
         UUID randomReplica = getFogHashByBlockId(blockId);
         UUID temporalReplica = getFogHashByTimeRange(startInstant, endInstant);
         UUID spatialReplica = getFogHashByBoundingBox(boundingBoxPolygon);
@@ -476,11 +487,12 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         responseObserver.onCompleted();
     }
 
-    private TSDBQueryResponse execTSDBQueryOnDataStoreFog(UUID dataStoreFogId, TSDBQueryRequest tsdbQueryRequest) {
+    private String execTSDBQueryOnDataStoreFog(UUID dataStoreFogId, UUID queryId, String query) {
+        LOGGER.info(String.format("%s[Query %s] Flux Query: %s", LOGGER.getName(), queryId, query));
         final long start = System.currentTimeMillis();
-        TSDBQueryResponse response = getDataStub(dataStoreFogId).execTSDBQueryLocal(tsdbQueryRequest);
+        String response = getQueryApi(dataStoreFogId).queryRaw(query);
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Outer] CoordinatorServer.execTSDBQueryLocal: %d", LOGGER.getName(), (end - start)));
+        LOGGER.info(String.format("%s[Outer %s] InfluxDB.queryRaw: %d", LOGGER.getName(), queryId, (end - start)));
         return response;
     }
 
@@ -540,45 +552,45 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         return voronoiPolygons;
     }
 
-    private List<UUID> getSpatialShortlist(BoundingBox boundingBox) {
-        return getSpatialShortlist(Utils.createPolygon(boundingBox));
+    private List<UUID> getSpatialShortlist(BoundingBox boundingBox, UUID queryId) {
+        return getSpatialShortlist(Utils.createPolygon(boundingBox), queryId);
     }
 
-    private List<UUID> getSpatialShortlist(double minLat, double maxLat, double minLon, double maxLon) {
-        return getSpatialShortlist(Utils.createPolygon(minLat, maxLat, minLon, maxLon));
+    private List<UUID> getSpatialShortlist(double minLat, double maxLat, double minLon, double maxLon, UUID queryId) {
+        return getSpatialShortlist(Utils.createPolygon(minLat, maxLat, minLon, maxLon), queryId);
     }
 
-    private List<UUID> getSpatialShortlist(String minLat, String maxLat, String minLon, String maxLon) {
+    private List<UUID> getSpatialShortlist(String minLat, String maxLat, String minLon, String maxLon, UUID queryId) {
         return getSpatialShortlist(Double.parseDouble(minLat),
-                Double.parseDouble(maxLat), Double.parseDouble(minLon), Double.parseDouble(maxLon));
+                Double.parseDouble(maxLat), Double.parseDouble(minLon), Double.parseDouble(maxLon), queryId);
     }
 
-    private List<UUID> getSpatialShortlist(Polygon queryPolygon) {
+    private List<UUID> getSpatialShortlist(Polygon queryPolygon, UUID queryId) {
         final long start = System.currentTimeMillis();
         List<UUID> spatialShortlist =  fogPartitions.keySet().stream().filter(fogId -> fogPartitions.get(fogId).getPolygon().intersects(queryPolygon)).collect(Collectors.toList());
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Local] CoordinatorServer.getSpatialShortlist: %d", LOGGER.getName(), (end - start)));
-        LOGGER.info(String.format("%s[Count] CoordinatorServer.spatialShortlist: %d", LOGGER.getName(), spatialShortlist.size()));
+        LOGGER.info(String.format("%s[Local %s] CoordinatorServer.getSpatialShortlist: %d", LOGGER.getName(), queryId, (end - start)));
+        LOGGER.info(String.format("%s[Count %s] CoordinatorServer.spatialShortlist: %d", LOGGER.getName(), queryId, spatialShortlist.size()));
         return spatialShortlist;
     }
 
-    private List<UUID> getTemporalShortlist(TimeRange timeRange) {
+    private List<UUID> getTemporalShortlist(TimeRange timeRange, UUID queryId) {
         final long start = System.currentTimeMillis();
         List<Instant> timeChunks = Utils.getTimeChunks(timeRange, Constants.TIME_CHUNK_SECONDS);
         List<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(chunk), Constants.SEED_HASH) % numFogs))).collect(Collectors.toList());
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Local] CoordinatorServer.getTemporalShortlist: %d", LOGGER.getName(), (end - start)));
-        LOGGER.info(String.format("%s[Count] CoordinatorServer.temporalShortlist: %d", LOGGER.getName(), temporalShortlist.size()));
+        LOGGER.info(String.format("%s[Local %s] CoordinatorServer.getTemporalShortlist: %d", LOGGER.getName(), queryId, (end - start)));
+        LOGGER.info(String.format("%s[Count %s] CoordinatorServer.temporalShortlist: %d", LOGGER.getName(), queryId, temporalShortlist.size()));
         return temporalShortlist;
     }
 
-    private List<UUID> getTemporalShortlist(String start, String end) {
+    private List<UUID> getTemporalShortlist(String start, String end, UUID queryId) {
         final long startTime = System.currentTimeMillis();
         List<Instant> timeChunks = Utils.getTimeChunks(start, end, Constants.TIME_CHUNK_SECONDS);
         List<UUID> temporalShortlist = timeChunks.stream().map(chunk -> fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(chunk), Constants.SEED_HASH) % numFogs))).collect(Collectors.toList());
         final long endTime = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Local] CoordinatorServer.getTemporalShortlist: %d", LOGGER.getName(), (endTime - startTime)));
-        LOGGER.info(String.format("%s[Count] CoordinatorServer.temporalShortlist: %d", LOGGER.getName(), temporalShortlist.size()));
+        LOGGER.info(String.format("%s[Local %s] CoordinatorServer.getTemporalShortlist: %d", LOGGER.getName(), queryId, (endTime - startTime)));
+        LOGGER.info(String.format("%s[Count %s] CoordinatorServer.temporalShortlist: %d", LOGGER.getName(), queryId, temporalShortlist.size()));
         return temporalShortlist;
     }
 
@@ -688,4 +700,27 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         return dataStubs.get(fogId);
     }
 
+    private QueryApi getQueryApi(UUID fogId) {
+        synchronized (dataStubs) {
+            if (!dataStubs.containsKey(fogId)) {
+                FogPartition membershipFogInfo = fogPartitions.get(fogId);
+                OkHttpClient.Builder okHttpClient = new OkHttpClient.Builder()
+                        .connectTimeout(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                        .writeTimeout(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                        .readTimeout(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                        .retryOnConnectionFailure(true);
+                InfluxDBClientOptions influxDBClientOptions = InfluxDBClientOptions.builder()
+                        .authenticateToken(membershipFogInfo.getToken().toCharArray())
+                        .org("org")
+                        .connectionString(String.format("http://%s:8086", membershipFogInfo.getDeviceIP())) // ?readTimeout=1m&connectTimeout=1m&writeTimeout=1m
+                        .okHttpClient(okHttpClient)
+                        .logLevel(LogLevel.BASIC)
+                        .bucket("bucket")
+                        .build();
+                InfluxDBClient influxDBClient = InfluxDBClientFactory.create(influxDBClientOptions);
+                dataQueryApis.put(fogId, influxDBClient.getQueryApi());
+            }
+        }
+        return dataQueryApis.get(fogId);
+    }
 }

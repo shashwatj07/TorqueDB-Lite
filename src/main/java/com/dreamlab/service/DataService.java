@@ -197,9 +197,18 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         LOGGER.info(String.format("%s[Query %s] Finding Block on %s:%d", LOGGER.getName(), queryId, serverIp, serverPort));
         final long start = System.currentTimeMillis();
         FindBlocksResponse.Builder findBlockResponseBuilder = FindBlocksResponse.newBuilder();
+        // initial capacity based on 2*avg
         Set<BlockReplicaInfo> relevantBlocks = new HashSet<>();
+        long n1 = System.currentTimeMillis();
         List<Instant> timeChunks = Utils.getTimeChunks(request.getTimeRange(), Constants.TIME_CHUNK_SECONDS);
+        long n2 = System.currentTimeMillis();
+        LOGGER.info(String.format("%s[Local %s] DataServer.getTimeChunks: %d", LOGGER.getName(), queryId, (n2 - n1)));
+        LOGGER.info(String.format("%s[Count %s] DataServer.timeChunks: %d", LOGGER.getName(), timeChunks.size(), (n2 - n1)));
+        n1 = System.currentTimeMillis();
         List<S2CellId> s2CellIds = Utils.getCellIds(request.getBoundingBox(), Constants.S2_CELL_LEVEL);
+        n2 = System.currentTimeMillis();
+        LOGGER.info(String.format("%s[Local %s] DataServer.getCellIds: %d", LOGGER.getName(), queryId, (n2 - n1)));
+        LOGGER.info(String.format("%s[Count %s] DataServer.s2CellIds: %d", LOGGER.getName(), s2CellIds.size(), (n2 - n1)));
         if (!request.getIsAndQuery()) {
             LOGGER.info(String.format("%s[Query %s] OR Query", LOGGER.getName(), queryId));
             if (request.hasBlockId()) {
@@ -230,41 +239,56 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 LOGGER.info(LOGGER.getName() + "hasBlockId: true");
                 flag = true;
                 UUID blockId = Utils.getUuidFromMessage(request.getBlockId());
-                if (blockIdMap.containsKey(blockId)) {
+                if (blockIdMap.containsKey(blockId)) { // timer
                     relevantBlocks.add(blockIdMap.get(blockId));
                 }
             }
             if (request.hasTimeRange()) {
                 LOGGER.info(LOGGER.getName() + "hasTimeRange: true");
                 Set<BlockReplicaInfo> timeBlocks = new HashSet<>();
+                n1 = System.currentTimeMillis();
                 for (Instant timeChunk : timeChunks) {
                     timeBlocks.addAll(timeMap.getOrDefault(timeChunk.toString(), Constants.EMPTY_LIST_REPLICA));
                 }
-                LOGGER.info(LOGGER.getName() + "timeBlocks " + timeBlocks);
+                n2 = System.currentTimeMillis();
+                LOGGER.info(String.format("%s[Local %s] DataServer.addAllTimeBlocks: %d", LOGGER.getName(), queryId, (n2 - n1)));
+                LOGGER.info(String.format("%s[Count %s] DataServer.timeBlocks: %d", LOGGER.getName(), timeBlocks.size(), (n2 - n1)));
+//                LOGGER.info(LOGGER.getName() + "timeBlocks " + timeBlocks);
+                n1 = System.currentTimeMillis();
                 if (flag) {
-                    relevantBlocks.retainAll(timeBlocks);
+                    relevantBlocks.retainAll(timeBlocks); // timer
                 }
                 else {
                     flag = true;
-                    relevantBlocks.addAll(timeBlocks);
+                    relevantBlocks.addAll(timeBlocks); // timer
                 }
+                n2 = System.currentTimeMillis();
+                LOGGER.info(String.format("%s[Local %s] DataServer.retainAllTimeBlocks: %d", LOGGER.getName(), queryId, (n2 - n1)));
                 LOGGER.info(LOGGER.getName() + " Relevant Blocks so far: " + relevantBlocks.size());
             }
             if (request.hasBoundingBox()) {
                 LOGGER.info(LOGGER.getName() + "hasBoundingBox: true");
                 Set<BlockReplicaInfo> geoBlocks = new HashSet<>();
-                for (S2CellId s2CellId : s2CellIds) {
+                n1 = System.currentTimeMillis();
+                for (S2CellId s2CellId : s2CellIds) { // timer outside
                     geoBlocks.addAll(geoMap.getOrDefault(s2CellId.toToken(), Constants.EMPTY_LIST_REPLICA));
                 }
-                LOGGER.info(LOGGER.getName() + "geoBlocks " + geoBlocks);
+                n2 = System.currentTimeMillis();
+                LOGGER.info(String.format("%s[Local %s] DataServer.addAllGeoBlocks: %d", LOGGER.getName(), queryId, (n2 - n1)));
+                LOGGER.info(String.format("%s[Count %s] DataServer.geoBlocks: %d", LOGGER.getName(), geoBlocks.size(), (n2 - n1)));
+//                LOGGER.info(LOGGER.getName() + "geoBlocks " + geoBlocks);
+                n1 = System.currentTimeMillis();
                 if (flag) {
-                    relevantBlocks.retainAll(geoBlocks);
+                    relevantBlocks.retainAll(geoBlocks); // timer
                 }
                 else {
-                    relevantBlocks.addAll(geoBlocks);
+                    relevantBlocks.addAll(geoBlocks); // timer
                 }
+                n2 = System.currentTimeMillis();
+                LOGGER.info(String.format("%s[Local %s] DataServer.retainAllGeoBlocks: %d", LOGGER.getName(), queryId, (n2 - n1)));
+
             }
-            for (Map.Entry<String, String> predicate : request.getMetadataMapMap().entrySet()) {
+            for (Map.Entry<String, String> predicate : request.getMetadataMapMap().entrySet()) { // timer outside
                 relevantBlocks.retainAll(metaMap.getOrDefault(predicate.getKey(), Constants.EMPTY_MAP_STRING_LIST_REPLICA).getOrDefault(predicate.getValue(), Constants.EMPTY_LIST_REPLICA));
             }
         }
@@ -365,7 +389,9 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
 //        LOGGER.info(String.format("%sTimeMap: %s\n", LOGGER.getName(), timeMap.toString()));
 //        LOGGER.info(String.format("%sGeoMap: %s\n", LOGGER.getName(), geoMap.toString()));
 //        LOGGER.info(String.format("%sBlockIdMap: %s\n", LOGGER.getName(), blockIdMap.toString()));
-        LOGGER.info(String.format("%s[Count] DataServer.blocksIndexed: %d", LOGGER.getName(), blockIdMap.size()));
+        LOGGER.info(String.format("%s[Count] DataServer.blockIdsIndexed: %d", LOGGER.getName(), blockIdMap.size()));
+        LOGGER.info(String.format("%s[Count] DataServer.timeChunksIndexed: %d", LOGGER.getName(), timeMap.size()));
+        LOGGER.info(String.format("%s[Count] DataServer.geoRegionsIndexed: %d", LOGGER.getName(), geoMap.size()));
         LOGGER.info(String.format("%s[Count] DataServer.blocksStored: %d", LOGGER.getName(), blocksStoredCount));
         responseObserver.onNext(Response.newBuilder().setIsSuccess(true).build());
         responseObserver.onCompleted();

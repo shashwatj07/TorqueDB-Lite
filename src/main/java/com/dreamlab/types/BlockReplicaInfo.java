@@ -16,9 +16,11 @@ public class BlockReplicaInfo implements Serializable {
     private static final long serialVersionUID = -8885818812042252438L;
     private final UUID blockID;
     private final List<DeviceInfo> replicaLocations;
+    private final int blockIdHash;
 
     public BlockReplicaInfo(UUID blockID) {
         this.blockID = blockID;
+        this.blockIdHash = blockID.hashCode();
         replicaLocations = new ArrayList<>();
     }
 
@@ -28,8 +30,6 @@ public class BlockReplicaInfo implements Serializable {
                 .addAllReplicas(replicaLocations.stream().map(DeviceInfo::toMessage).collect(Collectors.toList()))
                 .build();
     }
-
-
 
     public void addReplicaLocation(DeviceInfo replicaLocation) {
         replicaLocations.add(replicaLocation);
@@ -61,6 +61,6 @@ public class BlockReplicaInfo implements Serializable {
 
     @Override
     public int hashCode() {
-        return Objects.hash(blockID);
+        return blockIdHash;
     }
 }
