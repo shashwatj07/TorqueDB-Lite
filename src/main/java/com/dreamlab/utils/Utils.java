@@ -83,16 +83,15 @@ public final class Utils {
         return new S2LatLngRect(S2LatLng.fromDegrees(minLat, minLon), S2LatLng.fromDegrees(maxLat, maxLon));
     }
 
-    public static List<S2CellId> getCellIds(BoundingBox boundingBox, int s2CellLevel) {
+    public static List<S2CellId> getCellIds(BoundingBox boundingBox, int maxLevel) {
         return getCellIds(boundingBox.getBottomRightLatLon().getLatitude(), boundingBox.getTopLeftLatLon().getLongitude(),
-                boundingBox.getTopLeftLatLon().getLatitude(), boundingBox.getBottomRightLatLon().getLongitude(), s2CellLevel);
+                boundingBox.getTopLeftLatLon().getLatitude(), boundingBox.getBottomRightLatLon().getLongitude(), maxLevel);
     }
 
-    public static List<S2CellId> getCellIds(double minLat, double minLon, double maxLat, double maxLon, int s2CellLevel) {
+    public static List<S2CellId> getCellIds(double minLat, double minLon, double maxLat, double maxLon, int maxLevel) {
         S2LatLngRect s2LatLngRect = toS2Rectangle(minLat, minLon, maxLat, maxLon);
         S2RegionCoverer s2RegionCoverer = S2RegionCoverer.builder()
-                .setMaxLevel(s2CellLevel)
-                .setMinLevel(s2CellLevel)
+                .setMaxLevel(maxLevel)
                 .setMaxCells(Integer.MAX_VALUE)
                 .build();
         ArrayList<S2CellId> s2CellIds = s2RegionCoverer.getCovering(s2LatLngRect).cellIds();

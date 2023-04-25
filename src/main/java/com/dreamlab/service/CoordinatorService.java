@@ -665,7 +665,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     }
 
     private UUID getFogHashByBlockId(UUID blockId) {
-        return fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(blockId), Constants.SEED_HASH) % numFogs));
+        return fogIds.get((int) Math.abs(Constants.XXHASH64.hash(Utils.serializeObject(blockId.hashCode()), Constants.SEED_HASH) % numFogs));
     }
 
     private UUID getFogHashByBoundingBox(Polygon boundingBox) {
@@ -701,8 +701,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     }
 
     private QueryApi getQueryApi(UUID fogId) {
-        synchronized (dataStubs) {
-            if (!dataStubs.containsKey(fogId)) {
+        synchronized (dataQueryApis) {
+            if (!dataQueryApis.containsKey(fogId)) {
                 FogPartition membershipFogInfo = fogPartitions.get(fogId);
                 OkHttpClient.Builder okHttpClient = new OkHttpClient.Builder()
                         .connectTimeout(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)

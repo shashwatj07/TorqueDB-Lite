@@ -3,12 +3,14 @@ package com.dreamlab;
 import com.dreamlab.constants.Constants;
 import com.dreamlab.edgefs.grpcServices.BoundingBox;
 import com.dreamlab.edgefs.grpcServices.Point;
-import com.dreamlab.edgefs.grpcServices.TimeRange;
+import com.dreamlab.types.BlockReplicaInfo;
 import com.dreamlab.types.FogInfo;
 import com.dreamlab.types.FogPartition;
 import com.dreamlab.utils.Utils;
+import com.google.common.geometry.S2Cell;
 import com.google.common.geometry.S2CellId;
-import com.google.protobuf.Timestamp;
+import com.google.common.geometry.S2ShapeIndex;
+import com.google.common.geometry.S2ShapeIndexRegion;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -16,9 +18,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.triangulate.VoronoiDiagramBuilder;
 
-import javax.swing.plaf.synth.SynthLookAndFeel;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,40 +32,31 @@ public class Test {
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         fogPartitions = generateFogPartitions(new ArrayList<>(Utils.readFogDetails("C:\\Users\\Shashwat\\TorqueDB-Lite\\src\\main\\resources\\fogs20.json").values()));
-        double minLon=77.4586565, maxLat=12.862230000000002, minLat=12.85223, maxLon=77.4686565;
+        String minLat = "12.8527462", maxLat = "12.8553896", minLon = "77.5872018", maxLon = "77.5887901";
+        String start = "2023-01-01 00-00-00", stop = "2023-01-01 00-04-55";
+        UUID blockId = UUID.fromString("269a3a65-ed10-4914-b2a7-71a7ac8f968c");
+        BlockReplicaInfo blockReplicaInfo = new BlockReplicaInfo(blockId, minLat, maxLat, minLon, maxLon, Utils.getInstantFromString(start), Utils.getInstantFromString(stop));
+        S2ShapeIndex s2ShapeIndex = new S2ShapeIndex();
+        s2ShapeIndex.add(blockReplicaInfo);
+
+        double minLat1 = 12.8537462, maxLat1 = 12.8573896, minLon1 = 77.5875018, maxLon1 = 77.5987901;
         BoundingBox boundingBox = BoundingBox
                 .newBuilder()
-                .setBottomRightLatLon(
-                        Point.newBuilder()
-                                .setLatitude(minLat)
-                                .setLongitude(maxLon)
-                                .build())
-                .setTopLeftLatLon(
-                        Point.newBuilder()
-                                .setLatitude(maxLat)
-                                .setLongitude(minLon)
-                                .build())
+                .setBottomRightLatLon(Point.newBuilder().setLatitude(minLat1).setLongitude(maxLon1).build())
+                .setTopLeftLatLon(Point.newBuilder().setLatitude(maxLat1).setLongitude(minLon1).build())
                 .build();
-        List<S2CellId> s2CellIds = Utils.getCellIds(boundingBox, Constants.S2_CELL_LEVEL);
-        System.out.println(s2CellIds);
-        System.out.println(getSpatialShortlist(boundingBox));
+        List<S2CellId> s2CellIds = Utils.getCellIds(boundingBox, Constants.MAX_S2_CELL_LEVEL);
+        List<BlockReplicaInfo> relevantBlocks = new ArrayList<>();
+        S2ShapeIndexRegion s2ShapeIndexRegion = new S2ShapeIndexRegion(s2ShapeIndex);
+        s2CellIds.forEach((s2CellId) -> s2ShapeIndexRegion.visitIntersectingShapes(new S2Cell(s2CellId), (s2Shape, b) -> {
+            relevantBlocks.add((BlockReplicaInfo) s2Shape);
+            return false;
+        }));
 
-        minLat = 12.941887000000001; maxLat = 12.941889; minLon = 77.534278; maxLon = 77.53428;
-        BoundingBox boundingBox1 = BoundingBox
-                .newBuilder()
-                .setBottomRightLatLon(
-                        Point.newBuilder()
-                                .setLatitude(minLat)
-                                .setLongitude(maxLon)
-                                .build())
-                .setTopLeftLatLon(
-                        Point.newBuilder()
-                                .setLatitude(maxLat)
-                                .setLongitude(minLon)
-                                .build())
-                .build();
-        Iterable<S2CellId> cellIds = Utils.getCellIds(boundingBox1, Constants.S2_CELL_LEVEL);
-        System.out.println(cellIds);
+
+
+
+        System.out.println(relevantBlocks);
 
     }
 
