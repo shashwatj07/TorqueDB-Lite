@@ -270,7 +270,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 n2 = System.currentTimeMillis();
                 LOGGER.info(String.format("%s[Local %s] DataServer.addAllTimeBlocks: %d", LOGGER.getName(), queryId, (n2 - n1)));
                 LOGGER.info(String.format("%s[Count %s] DataServer.timeBlocks: %d", LOGGER.getName(), queryId, timeBlocks.size()));
-//                LOGGER.info(LOGGER.getName() + "timeBlocks " + timeBlocks);
+                LOGGER.info(LOGGER.getName() + "timeBlocks " + timeBlocks);
                 n1 = System.currentTimeMillis();
                 if (flag) {
                     relevantBlocks.retainAll(timeBlocks); // timer
@@ -301,7 +301,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 n2 = System.currentTimeMillis();
                 LOGGER.info(String.format("%s[Local %s] DataServer.addAllGeoBlocks: %d", LOGGER.getName(), queryId, (n2 - n1)));
                 LOGGER.info(String.format("%s[Count %s] DataServer.geoBlocks: %d", LOGGER.getName(), queryId, geoBlocks.size()));
-//                LOGGER.info(LOGGER.getName() + "geoBlocks " + geoBlocks);
+                LOGGER.info(LOGGER.getName() + "geoBlocks " + geoBlocks);
                 n1 = System.currentTimeMillis();
                 if (flag) {
                     relevantBlocks.retainAll(geoBlocks); // timer

@@ -128,10 +128,7 @@ public class BlockReplicaInfo implements Serializable, S2Shape {
 
     @Override
     public String toString() {
-        return "BlockReplicaInfo{" +
-                "blockID=" + blockID +
-                ", replicaLocations=" + replicaLocations +
-                '}';
+        return blockID.toString();
     }
 
     @Override
