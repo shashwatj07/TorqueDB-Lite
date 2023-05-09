@@ -217,11 +217,17 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         }
         FindBlocksRequest findBlocksRequest = findBlocksRequestBuilder.build();
 
-        if (influxDBQuery.getOperations().containsKey("region") && spatialShortlist.size() < temporalShortlist.size()) {
+        boolean spatialInactive = spatialShortlist.stream().anyMatch(fogId -> !fogPartitions.get(fogId).isActive());
+        boolean temporalInactive = temporalShortlist.stream().anyMatch(fogId -> !fogPartitions.get(fogId).isActive());
+
+        if (influxDBQuery.getOperations().containsKey("region") && !spatialInactive && spatialShortlist.size() < temporalShortlist.size()) {
             fogIds.addAll(spatialShortlist);
         }
-        else {
+        else if (!temporalInactive) {
             fogIds.addAll(temporalShortlist);
+        }
+        else {
+            fogIds.addAll(fogPartitions.keySet().stream().filter(fogId -> fogPartitions.get(fogId).isActive()).collect(Collectors.toList()));
         }
 
         LOGGER.info(String.format("%s[Query %s] CoordinatorServer.finalShortlist: %s", LOGGER.getName(), influxDBQuery.getQueryId(), fogIds));
@@ -260,7 +266,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         4.
          */
 
-        List<ExecPlan> plan = CostModel.QP1(responseSet);
+        List<ExecPlan> plan = CostModel.QP1(responseSet, fogPartitions);
         List<UUID> fogsToQuery = plan.stream().map(ExecPlan::getFogId).distinct().collect(Collectors.toList());
         Map<UUID, TSDBQuery> fogQueries = new HashMap<>();
         for (UUID fogId : fogsToQuery) {

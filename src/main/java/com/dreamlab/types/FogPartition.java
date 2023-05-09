@@ -10,7 +10,7 @@ public class FogPartition extends FogInfo implements Serializable {
     private Polygon polygon;
 
     public FogPartition(FogInfo fogInfo, Polygon polygon) {
-        super(fogInfo.getDeviceId(), fogInfo.getDeviceIP(), fogInfo.getDevicePort(), fogInfo.getLatitude(), fogInfo.getLongitude(), fogInfo.getToken());
+        super(fogInfo.getDeviceId(), fogInfo.getDeviceIP(), fogInfo.getDevicePort(), fogInfo.getLatitude(), fogInfo.getLongitude(), fogInfo.getToken(), fogInfo.isActive());
         this.polygon = polygon;
     }
 

@@ -21,8 +21,10 @@ import org.locationtech.jts.triangulate.VoronoiDiagramBuilder;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -46,15 +48,12 @@ public class Test {
                 .setTopLeftLatLon(Point.newBuilder().setLatitude(maxLat1).setLongitude(minLon1).build())
                 .build();
         List<S2CellId> s2CellIds = Utils.getCellIds(boundingBox, Constants.MAX_S2_CELL_LEVEL);
-        List<BlockReplicaInfo> relevantBlocks = new ArrayList<>();
+        Set<BlockReplicaInfo> relevantBlocks = new HashSet<>();
         S2ShapeIndexRegion s2ShapeIndexRegion = new S2ShapeIndexRegion(s2ShapeIndex);
         s2CellIds.forEach((s2CellId) -> s2ShapeIndexRegion.visitIntersectingShapes(new S2Cell(s2CellId), (s2Shape, b) -> {
             relevantBlocks.add((BlockReplicaInfo) s2Shape);
             return false;
         }));
-
-
-
 
         System.out.println(relevantBlocks);
 

@@ -75,8 +75,10 @@ public class ExecuteQueries {
 
             System.out.println(influxDBQuery);
 
-            final int fogIndex = Constants.RANDOM.nextInt(fogIds.size());
-            final FogInfo fogInfo = fogDetails.get(fogIds.get(fogIndex));
+//            final int fogIndex = Constants.RANDOM.nextInt(fogIds.size());
+//            final FogInfo fogInfo = fogDetails.get(fogIds.get(fogIndex));
+            FogInfo fogInfo;
+            for (fogInfo = fogDetails.get(fogIds.get(Constants.RANDOM.nextInt(fogIds.size()))); !fogInfo.isActive(); fogInfo = fogDetails.get(fogIds.get(Constants.RANDOM.nextInt(fogIds.size()))));
             System.out.println("Executing Query on " + fogInfo.getDeviceId());
             int fogNo = Integer.parseInt(fogInfo.getDeviceIP().substring(fogInfo.getDeviceIP().lastIndexOf(".") + 1));
             ManagedChannel managedChannel = ManagedChannelBuilder

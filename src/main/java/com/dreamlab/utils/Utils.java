@@ -95,7 +95,7 @@ public final class Utils {
                 .setMaxCells(Integer.MAX_VALUE)
                 .build();
         ArrayList<S2CellId> s2CellIds = s2RegionCoverer.getCovering(s2LatLngRect).cellIds();
-        s2RegionCoverer.getCovering(s2LatLngRect, s2CellIds);
+//        s2RegionCoverer.getCovering(s2LatLngRect, s2CellIds);
         return s2CellIds;
     }
 
@@ -181,7 +181,8 @@ public final class Utils {
                     (Integer) jsonObject.get("port"),
                     Double.parseDouble((String) jsonObject.get("latitude")),
                     Double.parseDouble((String) jsonObject.get("longitude")),
-                    (String) jsonObject.get("token")
+                    (String) jsonObject.get("token"),
+                    jsonObject.getBoolean("active")
             );
             fogDetails.put(fogId, fogInfo);
         }
