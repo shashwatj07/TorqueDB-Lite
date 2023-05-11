@@ -5,6 +5,7 @@ import com.dreamlab.edgefs.grpcServices.BlockIdReplicaMetadata;
 import com.dreamlab.edgefs.grpcServices.BlockReplica;
 import com.dreamlab.types.ExecPlan;
 import com.dreamlab.types.FogPartition;
+import com.influxdb.client.domain.Run;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -22,7 +23,7 @@ public final class CostModel {
                     .filter(replica -> fogPartitions.get(Utils.getUuidFromMessage(replica.getDeviceId())).isActive())
                     .collect(Collectors.toList());
             if (activeReplicas.size() == 0) {
-                continue;
+                throw new RuntimeException("No Available Replica for " + Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()));
             }
             BlockReplica replica = activeReplicas.get(Constants.RANDOM.nextInt(activeReplicas.size()));
             execPlanList.add(new ExecPlan(Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()),

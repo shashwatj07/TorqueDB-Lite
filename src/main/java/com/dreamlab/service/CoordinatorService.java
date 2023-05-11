@@ -220,14 +220,33 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         boolean spatialInactive = spatialShortlist.stream().anyMatch(fogId -> !fogPartitions.get(fogId).isActive());
         boolean temporalInactive = temporalShortlist.stream().anyMatch(fogId -> !fogPartitions.get(fogId).isActive());
 
-        if (influxDBQuery.getOperations().containsKey("region") && !spatialInactive && spatialShortlist.size() < temporalShortlist.size()) {
-            fogIds.addAll(spatialShortlist);
-        }
-        else if (!temporalInactive) {
-            fogIds.addAll(temporalShortlist);
+        if (spatialShortlist.size() <= temporalShortlist.size()) {
+            if (!spatialInactive) {
+                fogIds.addAll(spatialShortlist);
+                LOGGER.info(String.format("%s[Query %s] CoordinatorServer.shortlistChoice: optimal", LOGGER.getName(), influxDBQuery.getQueryId()));
+            }
+            else if (!temporalInactive) {
+                fogIds.addAll(temporalShortlist);
+                LOGGER.info(String.format("%s[Query %s] CoordinatorServer.shortlistChoice: suboptimal", LOGGER.getName(), influxDBQuery.getQueryId()));
+            }
+            else {
+                fogIds.addAll(fogPartitions.keySet().stream().filter(fogId -> fogPartitions.get(fogId).isActive()).collect(Collectors.toList()));
+                LOGGER.info(String.format("%s[Query %s] CoordinatorServer.shortlistChoice: broadcast", LOGGER.getName(), influxDBQuery.getQueryId()));
+            }
         }
         else {
-            fogIds.addAll(fogPartitions.keySet().stream().filter(fogId -> fogPartitions.get(fogId).isActive()).collect(Collectors.toList()));
+            if (!temporalInactive) {
+                fogIds.addAll(temporalShortlist);
+                LOGGER.info(String.format("%s[Query %s] CoordinatorServer.shortlistChoice: optimal", LOGGER.getName(), influxDBQuery.getQueryId()));
+            }
+            else if (!spatialInactive) {
+                fogIds.addAll(spatialShortlist);
+                LOGGER.info(String.format("%s[Query %s] CoordinatorServer.shortlistChoice: suboptimal", LOGGER.getName(), influxDBQuery.getQueryId()));
+            }
+            else {
+                fogIds.addAll(fogPartitions.keySet().stream().filter(fogId -> fogPartitions.get(fogId).isActive()).collect(Collectors.toList()));
+                LOGGER.info(String.format("%s[Query %s] CoordinatorServer.shortlistChoice: broadcast", LOGGER.getName(), influxDBQuery.getQueryId()));
+            }
         }
 
         LOGGER.info(String.format("%s[Query %s] CoordinatorServer.finalShortlist: %s", LOGGER.getName(), influxDBQuery.getQueryId(), fogIds));
@@ -498,7 +517,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         final long start = System.currentTimeMillis();
         String response = getQueryApi(dataStoreFogId).queryRaw(query);
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Outer %s] InfluxDB.queryRaw: %d", LOGGER.getName(), queryId, (end - start)));
+        LOGGER.info(String.format("%s[Outer %s] InfluxDB.queryRaw(%s): %d", LOGGER.getName(), queryId, dataStoreFogId, (end - start)));
         return response;
     }
 
