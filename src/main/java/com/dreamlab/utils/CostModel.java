@@ -15,7 +15,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 public final class CostModel {
-    public static List<ExecPlan> QP1(HashSet<BlockIdReplicaMetadata> blockIdReplicaMetadataSet, Map<UUID, FogPartition> fogPartitions) {
+    public static List<ExecPlan> QP1(HashSet<BlockIdReplicaMetadata> blockIdReplicaMetadataSet, Map<UUID, FogPartition> fogPartitions, UUID fogId) {
         // random
         List<ExecPlan> execPlanList = new ArrayList<>();
         for (BlockIdReplicaMetadata blockIdReplicaMetadata : blockIdReplicaMetadataSet) {
@@ -25,9 +25,15 @@ public final class CostModel {
             if (activeReplicas.size() == 0) {
                 throw new RuntimeException("No Available Replica for " + Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()));
             }
-            BlockReplica replica = activeReplicas.get(Constants.RANDOM.nextInt(activeReplicas.size()));
-            execPlanList.add(new ExecPlan(Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()),
-                    Utils.getUuidFromMessage(replica.getDeviceId())));
+            if (activeReplicas.stream().anyMatch(blockReplica -> Utils.getUuidFromMessage(blockReplica.getDeviceId()).equals(fogId))) {
+                execPlanList.add(new ExecPlan(Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()),
+                        fogId));
+            }
+            else {
+                BlockReplica replica = activeReplicas.get(Constants.RANDOM.nextInt(activeReplicas.size()));
+                execPlanList.add(new ExecPlan(Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()),
+                        Utils.getUuidFromMessage(replica.getDeviceId())));
+            }
         }
         return execPlanList;
     }
