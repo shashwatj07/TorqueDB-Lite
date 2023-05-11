@@ -33,15 +33,25 @@ public class Test {
     static Map<UUID, FogPartition> fogPartitions = null;
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
-        fogPartitions = generateFogPartitions(new ArrayList<>(Utils.readFogDetails("C:\\Users\\Shashwat\\TorqueDB-Lite\\src\\main\\resources\\fogs20.json").values()));
-        String minLat = "12.8527462", maxLat = "12.8553896", minLon = "77.5872018", maxLon = "77.5887901";
+        fogPartitions = generateFogPartitions(new ArrayList<>(Utils.readFogDetails("/Users/shashwat/TorqueDB-Lite/src/main/resources/fogs20.json").values()));
+
+//        "min_lat": 13.019756,
+//                "max_lat": 13.020997,
+//                "min_lon": 77.753943,
+//                "max_lon": 77.75514,
+        String minLat = "13.019756", maxLat = "13.020997", minLon = "77.753943", maxLon = "77.75514";
         String start = "2023-01-01 00-00-00", stop = "2023-01-01 00-04-55";
         UUID blockId = UUID.fromString("269a3a65-ed10-4914-b2a7-71a7ac8f968c");
         BlockReplicaInfo blockReplicaInfo = new BlockReplicaInfo(blockId, minLat, maxLat, minLon, maxLon, Utils.getInstantFromString(start), Utils.getInstantFromString(stop));
         S2ShapeIndex s2ShapeIndex = new S2ShapeIndex();
         s2ShapeIndex.add(blockReplicaInfo);
 
-        double minLat1 = 12.8537462, maxLat1 = 12.8573896, minLon1 = 77.5875018, maxLon1 = 77.5987901;
+//        "minLon": "77.7535415",
+//                "minLat": "13.0193765",
+//                "maxLat": "13.021376499999999",
+//                "maxLon": "77.7555415"
+
+        double minLat1 = 13.0193765, maxLat1 = 13.021376499999999, minLon1 = 77.7535415, maxLon1 = 77.7555415;
         BoundingBox boundingBox = BoundingBox
                 .newBuilder()
                 .setBottomRightLatLon(Point.newBuilder().setLatitude(minLat1).setLongitude(maxLon1).build())
