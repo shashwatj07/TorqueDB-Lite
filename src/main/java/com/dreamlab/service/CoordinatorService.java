@@ -285,7 +285,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         4.
          */
 
-        List<ExecPlan> plan = CostModel.QP1(responseSet, fogPartitions, fogId);
+        List<ExecPlan> plan = CostModel.QP2(responseSet, fogPartitions, fogId);
         List<UUID> fogsToQuery = plan.stream().map(ExecPlan::getFogId).distinct().collect(Collectors.toList());
         Map<UUID, TSDBQuery> fogQueries = new HashMap<>();
         for (UUID fogId : fogsToQuery) {
