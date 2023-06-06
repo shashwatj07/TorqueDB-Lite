@@ -44,6 +44,8 @@ public class ExecuteQueries {
         final String queryFilePath = args[4];
         int numClients = Integer.parseInt(args[5]);
         int index = Integer.parseInt(args[6]);
+        String costModel = args[7];
+
         JSONObject jsonObject = null;
         try {
             jsonObject = new JSONObject(Files.readString(Paths.get(queryFilePath)));
@@ -69,7 +71,7 @@ public class ExecuteQueries {
             influxDBQuery.addKeep(Arrays.asList("_value", "_time"));
             Model model = Model.FOG;
             Cache cache = Cache.FALSE;
-            QueryPolicy queryPolicy = QueryPolicy.QP1;
+            QueryPolicy queryPolicy = QueryPolicy.valueOf(costModel);
             influxDBQuery.addOptionalParameters(model, cache, queryPolicy);
             influxDBQuery.addQueryId(queryId);
 

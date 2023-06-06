@@ -219,7 +219,7 @@ public final class Utils {
         return createPolygon(Math.max(boundingBox.getBottomRightLatLon().getLatitude(), Constants.MIN_LAT),
                 Math.min(boundingBox.getTopLeftLatLon().getLatitude(), Constants.MAX_LAT),
                 Math.max(boundingBox.getTopLeftLatLon().getLongitude(), Constants.MIN_LON),
-                Math.min(boundingBox.getBottomRightLatLon().getLatitude(), Constants.MAX_LON));
+                Math.min(boundingBox.getBottomRightLatLon().getLongitude(), Constants.MAX_LON));
     }
 
     public static Polygon createPolygon(double minLat, double maxLat, double minLon, double maxLon){

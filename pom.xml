@@ -120,7 +120,7 @@
         <dependency>
             <groupId>com.github.google</groupId>
             <artifactId>s2-geometry-library-java</artifactId>
-            <version>master-SNAPSHOT</version>
+            <version>c3115a005f</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.locationtech.jts/jts-core -->
         <dependency>

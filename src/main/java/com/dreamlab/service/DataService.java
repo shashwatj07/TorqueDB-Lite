@@ -59,11 +59,11 @@ import java.util.stream.Collectors;
 
 public class DataService extends DataServerGrpc.DataServerImplBase {
 
-    private static String BACKUP_DIR_PATH = "/home/ultraviolet/experiments/backup";
+    private static final String BACKUP_DIR_PATH = "/home/ultraviolet/experiments/backup";
     private final ConcurrentMap<String, ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>>> metaMap;
     private final ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>> timeMap;
 //    private final ConcurrentMap<String, ConcurrentLinkedQueue<BlockReplicaInfo>> geoMap;
-    private S2ShapeIndex geoIndex;
+    private final S2ShapeIndex geoIndex;
     private final ConcurrentMap<UUID, BlockReplicaInfo> blockIdMap;
     private final InfluxDBClient influxDBClient;
     private final WriteApiBlocking writeApi;
@@ -417,8 +417,28 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         LOGGER.info(String.format("%s[Count] DataServer.blockIdsIndexed: %d", LOGGER.getName(), blockIdMap.size()));
         LOGGER.info(String.format("%s[Count] DataServer.timeChunksIndexed: %d", LOGGER.getName(), timeMap.size()));
         LOGGER.info(String.format("%s[Count] DataServer.geoRegionsIndexed: %d", LOGGER.getName(), geoIndex.getShapes().size()));
+        LOGGER.info(String.format("%sBlocks indexed in geoIndex: %s", LOGGER.getName(), geoIndex.getShapes().stream().map(shape -> ((BlockReplicaInfo) shape).getBlockID()).collect(Collectors.toList())));
+
         LOGGER.info(String.format("%s[Count] DataServer.blocksStored: %d", LOGGER.getName(), blocksStoredCount));
         responseObserver.onNext(Response.newBuilder().setIsSuccess(true).build());
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void testSpatialIndex(BoundingBox request, StreamObserver<FindBlocksResponse> responseObserver) {
+        List<S2CellId> s2CellIds = Utils.getCellIds(request, Constants.MAX_S2_CELL_LEVEL);
+        Set<BlockReplicaInfo> geoBlocks = new HashSet<>();
+        S2ShapeIndexRegion s2ShapeIndexRegion = new S2ShapeIndexRegion(geoIndex);
+        s2CellIds.forEach((s2CellId) -> s2ShapeIndexRegion.visitIntersectingShapes(new S2Cell(s2CellId), (s2Shape, b) -> {
+            geoBlocks.add((BlockReplicaInfo) s2Shape);
+            return false;
+        }));
+        System.out.println(geoBlocks);
+        FindBlocksResponse.Builder findBlockResponseBuilder = FindBlocksResponse.newBuilder();
+        findBlockResponseBuilder.addAllBlockIdReplicasMetadata(
+                geoBlocks.stream().map(BlockReplicaInfo::toMessage).collect(Collectors.toSet()));
+        FindBlocksResponse findBlocksResponse = findBlockResponseBuilder.build();
+        responseObserver.onNext(findBlocksResponse);
         responseObserver.onCompleted();
     }
 

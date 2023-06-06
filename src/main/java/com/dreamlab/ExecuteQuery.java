@@ -37,6 +37,7 @@ public class ExecuteQuery {
         final String maxLat = args[5];
         final String minLon = args[6];
         final String maxLon = args[7];
+        final String costModel = args[8];
 
 
         InfluxDBQuery influxDBQuery = new InfluxDBQuery();
@@ -52,7 +53,7 @@ public class ExecuteQuery {
         influxDBQuery.addKeep(keep);
         Model model = Model.FOG;
         Cache cache = Cache.FALSE;
-        QueryPolicy queryPolicy = QueryPolicy.QP1;
+        QueryPolicy queryPolicy = QueryPolicy.valueOf(costModel);
         influxDBQuery.addOptionalParameters(model, cache, queryPolicy);
         influxDBQuery.addQueryId();
 

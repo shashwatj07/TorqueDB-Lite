@@ -28,7 +28,7 @@ public class DataMigrationClient {
         InfluxDBQuery qu1 = new InfluxDBQuery();
         Model model = Model.FOG;
         Cache cache = Cache.FALSE;
-        QueryPolicy queryPolicy = QueryPolicy.QP1;
+        QueryPolicy queryPolicy = QueryPolicy.valueOf(args[2]);
         qu1.addBucketName("bucket"); // Influx
         qu1.addRange("2023-01-01 21-33-35", "2023-01-01 23-53-55");
 //        qu1.addRegion("13.0188576", "13.0213035", "77.4809204", "77.4818086");

@@ -38,6 +38,14 @@ public final class CostModel {
         @Override
         public int compare(Map.Entry<UUID, Set<UUID>> entry1,
                            Map.Entry<UUID, Set<UUID>> entry2) {
+            return Integer.compare(entry1.getValue().size(), entry2.getValue().size());
+        }
+    }
+
+    static class FrequencyComparatorReverse implements Comparator<Map.Entry<UUID, Set<UUID>>> {
+        @Override
+        public int compare(Map.Entry<UUID, Set<UUID>> entry1,
+                           Map.Entry<UUID, Set<UUID>> entry2) {
             return Integer.compare(entry2.getValue().size(), entry1.getValue().size());
         }
     }
@@ -116,6 +124,43 @@ public final class CostModel {
             }
         }
 
+        List<ExecPlan> execPlanList = new ArrayList<>();
+
+        for (UUID blockId : mapping.keySet()) {
+            execPlanList.add(new ExecPlan(blockId, mapping.get(blockId)));
+        }
+
+        return execPlanList;
+    }
+
+    public static List<ExecPlan> QP3(HashSet<BlockIdReplicaMetadata> blockIdReplicaMetadataSet, Map<UUID, FogPartition> fogPartitions, UUID fogId) {
+        Map<UUID, Set<UUID>> fogs = new HashMap<>();
+        for (BlockIdReplicaMetadata blockIdReplicaMetadata : blockIdReplicaMetadataSet) {
+            UUID blockId = Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId());
+            for (BlockReplica blockReplica : blockIdReplicaMetadata.getReplicasList()) {
+                UUID replicaFogId = Utils.getUuidFromMessage(blockReplica.getDeviceId());
+                if (!fogs.containsKey(replicaFogId)) {
+                    fogs.put(replicaFogId, new HashSet<>());
+                }
+                fogs.get(replicaFogId).add(blockId);
+            }
+        }
+
+        LinkedHashMap<UUID, Set<UUID>> sortedMap = fogs.entrySet().stream()
+                .sorted(new FrequencyComparatorReverse())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+
+        Map<UUID, UUID> mapping = new HashMap<>();
+        List<UUID> fogsList = new ArrayList<>(sortedMap.keySet());
+
+        for (UUID fog : fogsList) {
+            for (UUID blockId : new ArrayList<>(sortedMap.get(fog))) {
+                mapping.put(blockId, fogId);
+                for (UUID fogElement : fogsList) {
+                    sortedMap.get(fogElement).remove(blockId);
+                }
+            }
+        }
         List<ExecPlan> execPlanList = new ArrayList<>();
 
         for (UUID blockId : mapping.keySet()) {

@@ -29,6 +29,8 @@ service DataServer {
 
   rpc logIndexLocal (google.protobuf.Empty) returns (Response);
 
+  rpc testSpatialIndex (BoundingBox) returns (FindBlocksResponse);
+
 }
 
 service CoordinatorServer {

@@ -50,6 +50,7 @@ public class ExecuteQueriesRandom {
         int timeRange = Integer.parseInt(args[5]);
         double spatialRegion = Double.parseDouble(args[6]);
         int interval = Integer.parseInt(args[7]);
+        String costModel = args[8];
         File metadataDir = new File(metadataDirPath);
         ArrayList<File> metadataFiles = new ArrayList<>();
         for (File dir : metadataDir.listFiles()) {
@@ -62,7 +63,7 @@ public class ExecuteQueriesRandom {
         String bucket = "bucket";
         Model model = Model.FOG;
         Cache cache = Cache.FALSE;
-        QueryPolicy queryPolicy = QueryPolicy.QP1;
+        QueryPolicy queryPolicy = QueryPolicy.valueOf(costModel);
         for (int queryIndex = 0; queryIndex < count; queryIndex++) {
             final int blockIndex = Constants.RANDOM.nextInt(metadataFiles.size());
             System.out.println(metadataFiles.get(blockIndex).toPath());

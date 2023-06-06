@@ -156,16 +156,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     public void execTSDBQuery(TSDBQueryRequest request, StreamObserver<TSDBQueryResponse> responseObserver) {
         final long start = System.currentTimeMillis();
         TSDBQueryResponse.Builder tsdbQueryResponseBuilder = TSDBQueryResponse.newBuilder();
-        //TODO
-        /*
-        1. Extract Predicates - time range, spatial bounding box, blockId
-        2. Find out which fogs these predicates map to
-        3. Query those fogs: findBlocksLocal
-        4. Union of results
-        5. Query those fogs: execTSDBQueryLocal
-        6. Aggregate Results
-        7. Return
-         */
+
         ObjectInputStream objectInputStream = null;
         InfluxDBQuery influxDBQuery = null;
         try {
@@ -212,6 +203,8 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                                             .setLongitude(Double.parseDouble(region.get("minLon")))
                                             .build())
                             .build());
+            LOGGER.info(String.format("%s[Query %s] CoordinatorServer.boundingBox: %s", LOGGER.getName(), influxDBQuery.getQueryId(), findBlocksRequestBuilder.getBoundingBox()));
+            LOGGER.info(getSpatialShortlist(findBlocksRequestBuilder.getBoundingBox(), influxDBQuery.getQueryId()).toString());
             spatialShortlist.addAll(getSpatialShortlist(findBlocksRequestBuilder.getBoundingBox(), influxDBQuery.getQueryId()));
             LOGGER.info(String.format("%s[Query %s] CoordinatorServer.spatialShortlist: %s", LOGGER.getName(), influxDBQuery.getQueryId(), spatialShortlist));
         }
@@ -278,14 +271,13 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         LOGGER.info(String.format("%s[Count %s] CoordinatorServer.finalBlocks: %d", LOGGER.getName(), influxDBQuery.getQueryId(), responseSet.size()));
 //        LOGGER.info(String.format("%s[Count] CoordinatorServer.finalBlocks(%s): %s", LOGGER.getName(), influxDBQuery.getQueryId(), responseSet));
 
-        /*
-        1. Execute Cost model to assign blocks to fogs
-        2. Generate flux query on the coordinator
-        3. Execute sub queries on specific fogs
-        4.
-         */
+        List<ExecPlan> plan = null;
+        switch (influxDBQuery.getQueryPolicy()) {
+            case QP1: plan = CostModel.QP1(responseSet, fogPartitions, fogId); break;
+            case QP2: plan = CostModel.QP2(responseSet, fogPartitions, fogId); break;
+            case QP3: plan = CostModel.QP3(responseSet, fogPartitions, fogId); break;
+        }
 
-        List<ExecPlan> plan = CostModel.QP2(responseSet, fogPartitions, fogId);
         List<UUID> fogsToQuery = plan.stream().map(ExecPlan::getFogId).distinct().collect(Collectors.toList());
         Map<UUID, TSDBQuery> fogQueries = new HashMap<>();
         for (UUID fogId : fogsToQuery) {
