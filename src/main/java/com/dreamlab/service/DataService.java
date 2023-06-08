@@ -238,7 +238,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 S2ShapeIndexRegion s2ShapeIndexRegion = new S2ShapeIndexRegion(geoIndex);
                 s2CellIds.forEach((s2CellId) -> s2ShapeIndexRegion.visitIntersectingShapes(new S2Cell(s2CellId), (s2Shape, b) -> {
                     relevantBlocks.add((BlockReplicaInfo) s2Shape);
-                    return false;
+                    return true;
                 }));
 //                for (S2CellId s2CellId : s2CellIds) {
 //                    relevantBlocks.addAll(geoMap.getOrDefault(s2CellId.toToken(), Constants.EMPTY_LIST_REPLICA));
@@ -290,7 +290,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
                 S2ShapeIndexRegion s2ShapeIndexRegion = new S2ShapeIndexRegion(geoIndex);
                 s2CellIds.forEach((s2CellId) -> s2ShapeIndexRegion.visitIntersectingShapes(new S2Cell(s2CellId), (s2Shape, b) -> {
                     geoBlocks.add((BlockReplicaInfo) s2Shape);
-                    return false;
+                    return true;
                 }));
 //                for (S2CellId s2CellId : s2CellIds) { // timer outside
 //                    ConcurrentLinkedQueue<BlockReplicaInfo> result = geoMap.get(s2CellId.toToken());
@@ -431,7 +431,7 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
         S2ShapeIndexRegion s2ShapeIndexRegion = new S2ShapeIndexRegion(geoIndex);
         s2CellIds.forEach((s2CellId) -> s2ShapeIndexRegion.visitIntersectingShapes(new S2Cell(s2CellId), (s2Shape, b) -> {
             geoBlocks.add((BlockReplicaInfo) s2Shape);
-            return false;
+            return true;
         }));
         System.out.println(geoBlocks);
         FindBlocksResponse.Builder findBlockResponseBuilder = FindBlocksResponse.newBuilder();

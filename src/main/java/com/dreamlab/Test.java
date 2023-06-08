@@ -62,7 +62,7 @@ public class Test {
         S2ShapeIndexRegion s2ShapeIndexRegion = new S2ShapeIndexRegion(s2ShapeIndex);
         s2CellIds.forEach((s2CellId) -> s2ShapeIndexRegion.visitIntersectingShapes(new S2Cell(s2CellId), (s2Shape, b) -> {
             relevantBlocks.add((BlockReplicaInfo) s2Shape);
-            return false;
+            return true;
         }));
 
         System.out.println(relevantBlocks);
