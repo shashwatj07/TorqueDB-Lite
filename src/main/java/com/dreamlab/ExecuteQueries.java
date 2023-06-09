@@ -11,8 +11,14 @@ import com.dreamlab.query.InfluxDBQuery;
 import com.dreamlab.types.FogInfo;
 import com.dreamlab.utils.Utils;
 import com.google.protobuf.ByteString;
+import com.influxdb.LogLevel;
+import com.influxdb.client.InfluxDBClient;
+import com.influxdb.client.InfluxDBClientFactory;
+import com.influxdb.client.InfluxDBClientOptions;
+import com.influxdb.client.QueryApi;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import okhttp3.OkHttpClient;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -22,12 +28,10 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 public class ExecuteQueries {
@@ -45,6 +49,7 @@ public class ExecuteQueries {
         int numClients = Integer.parseInt(args[5]);
         int index = Integer.parseInt(args[6]);
         String costModel = args[7];
+        boolean queryCloud = Boolean.parseBoolean(args[8]);
 
         JSONObject jsonObject = null;
         try {
@@ -103,13 +108,84 @@ public class ExecuteQueries {
                 LOGGER.info(String.format("[Query %s] Lines: %d", influxDBQuery.getQueryId(), tsdbQueryResponse.getFluxQueryResponse().toStringUtf8().chars().filter(c -> c == '\n').count()));
                 managedChannel.shutdown();
                 LOGGER.info(LOGGER.getName() + "[Outer " + influxDBQuery.getQueryId() + "] CoordinatorServer.execTSDBQuery: " + (endTime - startTime));
-                System.out.println(queryId + " " + (endTime-startTime));
+//                System.out.println(queryId + " " + (endTime - startTime));
                 final long sleepTime = interval * 1000L - (endTime - startTime);
                 Thread.sleep(sleepTime >= 0? sleepTime : 0);
             }
             catch (Exception ex) {
                 System.out.println(queryId + " Failed");
             }
+
+            if (queryCloud) {
+                String host = args[9];
+                String token = args[10];
+                OkHttpClient.Builder okHttpClient = new OkHttpClient.Builder()
+                        .connectTimeout(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                        .writeTimeout(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                        .readTimeout(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                        .retryOnConnectionFailure(true);
+                InfluxDBClientOptions influxDBClientOptions = InfluxDBClientOptions.builder()
+                        .authenticateToken(token.toCharArray())
+                        .org("org")
+                        .connectionString(String.format("http://%s:8086?readTimeout=60m&connectTimeout=60m&writeTimeout=60m", host)) // ?readTimeout=1m&connectTimeout=1m&writeTimeout=1m
+                        .okHttpClient(okHttpClient)
+                        .logLevel(LogLevel.BASIC)
+                        .bucket("bucket")
+                        .build();
+                final InfluxDBClient influxDBClient = InfluxDBClientFactory.create(influxDBClientOptions);
+                QueryApi queryApi = influxDBClient.getQueryApi();
+                try {
+                    long startTime = System.currentTimeMillis();
+                    String result = queryApi.queryRaw(getFluxQuery(influxDBQuery));
+                    long endTime = System.currentTimeMillis();
+                    LOGGER.info(String.format("[Query %s] Lines: %d", influxDBQuery.getQueryId(), result.chars().filter(c -> c == '\n').count()));
+                    influxDBClient.close();
+                    LOGGER.info(LOGGER.getName() + "[Outer " + influxDBQuery.getQueryId() + "] CoordinatorServer.execCloudQuery: " + (endTime - startTime));
+//                    System.out.println(queryId + " " + (endTime - startTime));
+                }
+                catch (Exception ex) {
+                    System.out.println(queryId + " Failed");
+                }
+            }
         }
+    }
+
+    public static String getFluxQuery(InfluxDBQuery influxDBQuery) {
+        StringBuilder query = new StringBuilder();
+        query.append("import \"experimental/geo\" ");
+        query.append("from(bucket:\"").append(influxDBQuery.getBucket()).append("\")");
+
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
+
+        LocalDateTime start = LocalDateTime.parse(
+                influxDBQuery.getOperations().get("range").get("start"),
+                DateTimeFormatter.ofPattern(Constants.DATE_TIME_PATTERN)).minusMinutes(330);
+        LocalDateTime stop = LocalDateTime.parse(
+                influxDBQuery.getOperations().get("range").get("stop"),
+                DateTimeFormatter.ofPattern(Constants.DATE_TIME_PATTERN)).minusMinutes(330);
+
+        LocalDateTime temp_date = stop.minusSeconds(1);
+
+        query.append("|> range(start:").append(start.format(formatter)).append("Z,stop:")
+                .append(temp_date.format(formatter)).append("Z)");
+
+
+        HashMap<String, String> region = influxDBQuery.getOperations().get("region");
+        query.append("|> geo.filterRows(region: ")
+                .append("{ minLat: ").append(region.get("minLat"))
+                .append(", maxLat: ").append(region.get("maxLat"))
+                .append(", minLon: ").append(region.get("minLon"))
+                .append(", maxLon: ").append(region.get("maxLon"))
+                .append(" }, strict: true)");
+
+        query.append("|>keep(columns:[");
+        Map<String, String> keepMap = influxDBQuery.getOperations().get("keep");
+        for (String k : keepMap.keySet()) {
+            query.append("\"").append(keepMap.get(k)).append("\"").append(",");
+        }
+        query = new StringBuilder(query.substring(0, query.length() - 1));
+        query.append("])");
+
+        return query.toString();
     }
 }
