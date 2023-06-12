@@ -58,6 +58,10 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
         heartbeatThread.start();
         coordinatorStubs = new HashMap<>();
         LOGGER = Logger.getLogger(String.format("[Edge: %s] ", id));
+        // Warmup
+        for (UUID fog : fogDetails.keySet()) {
+            getCoordinatorStub(fog);
+        }
     }
 
     @Override

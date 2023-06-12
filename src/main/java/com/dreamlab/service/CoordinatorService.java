@@ -89,6 +89,11 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         Collections.sort(fogIds);
         dataStubs = new ConcurrentHashMap<>();
         dataQueryApis = new ConcurrentHashMap<>();
+        // Warmup
+        for (UUID fog : fogDetails.keySet()) {
+            getDataStub(fog);
+            getQueryApi(fog);
+        }
     }
 
     @Override
