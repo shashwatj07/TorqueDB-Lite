@@ -55,10 +55,13 @@ public final class CostModel {
 
         Map<UUID, UUID> mapping = new HashMap<>();
         Map<UUID, Set<UUID>> fogs = new HashMap<>();
+        Map<UUID, Set<UUID>> blocks = new HashMap<>();
         for (BlockIdReplicaMetadata blockIdReplicaMetadata : blockIdReplicaMetadataSet) {
             UUID blockId = Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId());
+            blocks.put(blockId, new HashSet<>());
             for (BlockReplica blockReplica : blockIdReplicaMetadata.getReplicasList()) {
                 UUID replicaFogId = Utils.getUuidFromMessage(blockReplica.getDeviceId());
+                blocks.get(blockId).add(replicaFogId);
                 if (!fogs.containsKey(replicaFogId)) {
                     fogs.put(replicaFogId, new HashSet<>());
                 }
@@ -92,12 +95,12 @@ public final class CostModel {
                 }
 
                 int min = Integer.MAX_VALUE;
-                for (UUID fogCandidate : fogsList) {
+                for (UUID fogCandidate : blocks.get(selectedBlockId)) {
                     min = Math.min(assignedBlocksCount.get(fogCandidate), min);
                 }
 
                 Set<UUID> fogCandidates = new HashSet<>();
-                for (UUID fogCandidate : fogsList) {
+                for (UUID fogCandidate : blocks.get(selectedBlockId)) {
                     if (assignedBlocksCount.get(fogCandidate) == min) {
                         fogCandidates.add(fogCandidate);
                     }
@@ -117,8 +120,7 @@ public final class CostModel {
                 }
                 mapping.put(selectedBlockId, assignedFogId);
                 assignedBlocksCount.put(assignedFogId, assignedBlocksCount.get(assignedFogId) + 1);
-
-                for (UUID fogElement : fogsList) {
+                for (UUID fogElement : blocks.get(selectedBlockId)) {
                     sortedMap.get(fogElement).remove(selectedBlockId);
                 }
             }
@@ -135,10 +137,13 @@ public final class CostModel {
 
     public static List<ExecPlan> QP3(HashSet<BlockIdReplicaMetadata> blockIdReplicaMetadataSet, Map<UUID, FogPartition> fogPartitions, UUID fogId) {
         Map<UUID, Set<UUID>> fogs = new HashMap<>();
+        Map<UUID, Set<UUID>> blocks = new HashMap<>();
         for (BlockIdReplicaMetadata blockIdReplicaMetadata : blockIdReplicaMetadataSet) {
             UUID blockId = Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId());
+            blocks.put(blockId, new HashSet<>());
             for (BlockReplica blockReplica : blockIdReplicaMetadata.getReplicasList()) {
                 UUID replicaFogId = Utils.getUuidFromMessage(blockReplica.getDeviceId());
+                blocks.get(blockId).add(replicaFogId);
                 if (!fogs.containsKey(replicaFogId)) {
                     fogs.put(replicaFogId, new HashSet<>());
                 }
@@ -156,7 +161,7 @@ public final class CostModel {
         for (UUID fog : fogsList) {
             for (UUID blockId : new ArrayList<>(sortedMap.get(fog))) {
                 mapping.put(blockId, fogId);
-                for (UUID fogElement : fogsList) {
+                for (UUID fogElement : blocks.get(blockId)) {
                     sortedMap.get(fogElement).remove(blockId);
                 }
             }
