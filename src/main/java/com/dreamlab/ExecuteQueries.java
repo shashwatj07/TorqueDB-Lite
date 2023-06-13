@@ -108,6 +108,7 @@ public class ExecuteQueries {
                 LOGGER.info(String.format("[Query %s] Lines: %d", influxDBQuery.getQueryId(), tsdbQueryResponse.getFluxQueryResponse().toStringUtf8().chars().filter(c -> c == '\n').count()));
                 managedChannel.shutdown();
                 LOGGER.info(LOGGER.getName() + "[Outer " + influxDBQuery.getQueryId() + "] CoordinatorServer.execTSDBQuery: " + (endTime - startTime));
+                LOGGER.info(tsdbQueryResponse.getFluxQueryResponse().toStringUtf8());
 //                System.out.println(queryId + " " + (endTime - startTime));
                 final long sleepTime = interval * 1000L - (endTime - startTime);
                 Thread.sleep(sleepTime >= 0? sleepTime : 0);
