@@ -160,7 +160,7 @@ public final class CostModel {
 
         for (UUID fog : fogsList) {
             for (UUID blockId : new ArrayList<>(sortedMap.get(fog))) {
-                mapping.put(blockId, fogId);
+                mapping.put(blockId, fog);
                 for (UUID fogElement : blocks.get(blockId)) {
                     sortedMap.get(fogElement).remove(blockId);
                 }

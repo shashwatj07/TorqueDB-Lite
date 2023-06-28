@@ -294,7 +294,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         long n2 = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Local %s] CoordinatorServer.queryDecomposition: %d", LOGGER.getName(), influxDBQuery.getQueryId(), (n2 - n1)));
 
-        System.out.println("L2: " + costModelOutput.perFogLevel2Query);
+        LOGGER.info(String.format("%s[Local %s] CoordinatorServer.perFogLevel2Query: %s", LOGGER.getName(), influxDBQuery.getQueryId(), costModelOutput.perFogLevel2Query));
         LOGGER.info(String.format("%s[Count %s] CoordinatorServer.execTSDBQueryLocal: %d", LOGGER.getName(), influxDBQuery.getQueryId(), costModelOutput.perFogLevel2Query.size()));
 
         List<Future<String>> futureList = new ArrayList<>();
