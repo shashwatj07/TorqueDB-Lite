@@ -9,6 +9,7 @@ import com.dreamlab.edgefs.grpcServices.TSDBQueryRequest;
 import com.dreamlab.edgefs.grpcServices.TSDBQueryResponse;
 import com.dreamlab.query.InfluxDBQuery;
 import com.dreamlab.types.FogInfo;
+import com.dreamlab.types.FogPartition;
 import com.dreamlab.utils.Utils;
 import com.google.protobuf.ByteString;
 import com.influxdb.LogLevel;
@@ -20,6 +21,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import okhttp3.OkHttpClient;
 import org.json.JSONObject;
+import org.locationtech.jts.geom.*;
+import org.locationtech.jts.triangulate.VoronoiDiagramBuilder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -33,6 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class ExecuteQueries {
 
@@ -43,13 +47,16 @@ public class ExecuteQueries {
         final String fogsConfigFilePath = args[1];
         Map<UUID, FogInfo> fogDetails = Utils.readFogDetails(fogsConfigFilePath);
         List<UUID> fogIds = new ArrayList<>(fogDetails.keySet());
+        Collections.sort(fogIds);
+        Map<UUID, FogPartition> fogPartitions = generateFogPartitions(new ArrayList<>(fogDetails.values()));
         String workload = args[2];
         int interval = Integer.parseInt(args[3]);
         final String queryFilePath = args[4];
         int numClients = Integer.parseInt(args[5]);
         int index = Integer.parseInt(args[6]);
         String costModel = args[7];
-        boolean queryCloud = Boolean.parseBoolean(args[8]);
+        String coordinator = args[8];
+        boolean queryCloud = Boolean.parseBoolean(args[9]);
 
         JSONObject jsonObject = null;
         try {
@@ -84,8 +91,18 @@ public class ExecuteQueries {
 
 //            final int fogIndex = Constants.RANDOM.nextInt(fogIds.size());
 //            final FogInfo fogInfo = fogDetails.get(fogIds.get(fogIndex));
-            FogInfo fogInfo;
-            for (fogInfo = fogDetails.get(fogIds.get(Constants.RANDOM.nextInt(fogIds.size()))); !fogInfo.isActive(); fogInfo = fogDetails.get(fogIds.get(Constants.RANDOM.nextInt(fogIds.size()))));
+            FogInfo fogInfo = null;
+            if (coordinator.equals("random")) {
+                for (fogInfo = fogDetails.get(fogIds.get(Constants.RANDOM.nextInt(fogIds.size()))); !fogInfo.isActive(); fogInfo = fogDetails.get(fogIds.get(Constants.RANDOM.nextInt(fogIds.size()))))
+                    ;
+            } else if (coordinator.equals("local")) {
+                Polygon boundingBoxPolygon = Utils.createPolygon(Double.parseDouble(params.getString("minLat")),
+                        Double.parseDouble(params.getString("maxLat")), Double.parseDouble(params.getString("minLon")),
+                        Double.parseDouble(params.getString("maxLon")));
+
+                fogInfo = fogDetails.get(getFogHashByBoundingBox(boundingBoxPolygon, fogPartitions, fogIds));
+//
+            }
             System.out.println("Executing Query on " + fogInfo.getDeviceId());
             int fogNo = Integer.parseInt(fogInfo.getDeviceIP().substring(fogInfo.getDeviceIP().lastIndexOf(".") + 1));
             ManagedChannel managedChannel = ManagedChannelBuilder
@@ -149,6 +166,54 @@ public class ExecuteQueries {
                 }
             }
         }
+    }
+
+    private static UUID getFogHashByBoundingBox(Polygon boundingBox, Map<UUID, FogPartition> fogPartitions, List<UUID> fogIds) {
+        org.locationtech.jts.geom.Point centroid = boundingBox.getCentroid();
+        for (Map.Entry<UUID, FogPartition> entry : fogPartitions.entrySet()) {
+            if (entry.getValue().getPolygon().intersects(centroid)) {
+                return entry.getKey();
+            }
+        }
+        return fogIds.get(0);
+    }
+
+    private static Map<UUID, FogPartition> generateFogPartitions(List<FogInfo> fogDevices) {
+        List<Polygon> polygons = generateVoronoiPolygons(fogDevices);
+        return generateFogPolygonMap(fogDevices, polygons);
+    }
+
+    private static Map<UUID, FogPartition> generateFogPolygonMap(List<FogInfo> fogDevices, List<Polygon> polygons) {
+        Map<UUID, FogPartition> fogPartitionMap = new HashMap<>();
+        for (FogInfo fog : fogDevices) {
+            for (Polygon polygon : polygons) {
+                Coordinate coordinate = new Coordinate(fog.getLongitude(), fog.getLatitude());
+                if (polygon.contains(GeometryFactory.createPointFromInternalCoord(coordinate, polygon))) {
+                    fogPartitionMap.put(fog.getDeviceId(), Utils.getFogPartition(fog, polygon));
+                }
+            }
+        }
+        return fogPartitionMap;
+    }
+
+    private static List<Polygon> generateVoronoiPolygons(List<FogInfo> fogDevices) {
+        final Polygon region = Utils.createPolygon(12.834, 13.1437, 77.4601, 77.784);
+        List<Coordinate> coordinates = fogDevices.stream().map(Utils::getCoordinateFromFogInfo).collect(Collectors.toList());
+        VoronoiDiagramBuilder diagramBuilder = new VoronoiDiagramBuilder();
+        diagramBuilder.setSites(coordinates);
+        diagramBuilder.setClipEnvelope(region.getEnvelopeInternal());
+        Geometry polygonCollection = diagramBuilder.getDiagram(region.getFactory());
+
+        List<Polygon> voronoiPolygons = new ArrayList<>();
+
+        if (polygonCollection instanceof GeometryCollection) {
+            GeometryCollection geometryCollection = (GeometryCollection) polygonCollection;
+            for (int polygonIndex = 0; polygonIndex < geometryCollection.getNumGeometries(); polygonIndex++) {
+                Polygon polygon = (Polygon) geometryCollection.getGeometryN(polygonIndex);
+                voronoiPolygons.add(polygon);
+            }
+        }
+        return voronoiPolygons;
     }
 
     public static String getFluxQuery(InfluxDBQuery influxDBQuery) {
