@@ -281,6 +281,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             case QP1: plan = CostModel.QP1(responseSet, fogPartitions, fogId); break;
             case QP2: plan = CostModel.QP2(responseSet, fogPartitions, fogId); break;
             case QP3: plan = CostModel.QP3(responseSet, fogPartitions, fogId); break;
+            case QP4: plan = CostModel.QP4(responseSet, fogPartitions, fogId); break;
         }
 
         List<UUID> fogsToQuery = plan.stream().map(ExecPlan::getFogId).distinct().collect(Collectors.toList());
