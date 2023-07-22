@@ -154,6 +154,7 @@ message TSDBQueryRequest {
 
 message TSDBQueryResponse {
   bytes fluxQueryResponse = 1;
+  bool success = 2;
 }
 
 message UUIDMessage {

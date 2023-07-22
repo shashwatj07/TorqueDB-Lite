@@ -277,11 +277,28 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
 //        LOGGER.info(String.format("%s[Count] CoordinatorServer.finalBlocks(%s): %s", LOGGER.getName(), influxDBQuery.getQueryId(), responseSet));
 
         List<ExecPlan> plan = null;
-        switch (influxDBQuery.getQueryPolicy()) {
-            case QP1: plan = CostModel.QP1(responseSet, fogPartitions, fogId); break;
-            case QP2: plan = CostModel.QP2(responseSet, fogPartitions, fogId); break;
-            case QP3: plan = CostModel.QP3(responseSet, fogPartitions, fogId); break;
-            case QP4: plan = CostModel.QP4(responseSet, fogPartitions, fogId); break;
+        try {
+            switch (influxDBQuery.getQueryPolicy()) {
+                case QP1:
+                    plan = CostModel.QP1(responseSet, fogPartitions, fogId);
+                    break;
+                case QP2:
+                    plan = CostModel.QP2(responseSet, fogPartitions, fogId);
+                    break;
+                case QP3:
+                    plan = CostModel.QP3(responseSet, fogPartitions, fogId);
+                    break;
+                case QP4:
+                    plan = CostModel.QP4(responseSet, fogPartitions, fogId);
+                    break;
+            }
+        } catch (RuntimeException ex) {
+            // No available replica for some block
+            ex.printStackTrace();
+            tsdbQueryResponseBuilder.setSuccess(false);
+            responseObserver.onNext(tsdbQueryResponseBuilder.build());
+            responseObserver.onCompleted();
+            return;
         }
 
         List<UUID> fogsToQuery = plan.stream().map(ExecPlan::getFogId).distinct().collect(Collectors.toList());
@@ -329,6 +346,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         tsdbQueryResponseBuilder.setFluxQueryResponse(ByteString.copyFromUtf8(responseBuffer.toString()));
         final long end = System.currentTimeMillis();
         LOGGER.info(String.format("%s[Inner %s] CoordinatorServer.execTSDBQuery: %d", LOGGER.getName(), influxDBQuery.getQueryId(), (end - start)));
+        tsdbQueryResponseBuilder.setSuccess(true);
         responseObserver.onNext(tsdbQueryResponseBuilder.build());
         responseObserver.onCompleted();
     }

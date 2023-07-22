@@ -122,16 +122,24 @@ public class ExecuteQueries {
                 final long startTime = System.currentTimeMillis();
                 TSDBQueryResponse tsdbQueryResponse = coordinatorServerBlockingStub.execTSDBQuery(TSDBQueryRequest.newBuilder().addFluxQuery(ByteString.copyFrom(buffer)).setQueryId(Utils.getMessageFromUUID(influxDBQuery.getQueryId())).build());
                 final long endTime = System.currentTimeMillis();
-                LOGGER.info(String.format("[Query %s] Lines: %d", influxDBQuery.getQueryId(), tsdbQueryResponse.getFluxQueryResponse().toStringUtf8().chars().filter(c -> c == '\n').count()));
+                if (tsdbQueryResponse.getSuccess())
+                {
+                    LOGGER.info(String.format("[Query %s] Lines: %d", influxDBQuery.getQueryId(), tsdbQueryResponse.getFluxQueryResponse().toStringUtf8().chars().filter(c -> c == '\n').count()));
+                    LOGGER.info(LOGGER.getName() + "[Outer " + influxDBQuery.getQueryId() + "] CoordinatorServer.execTSDBQuery: " + (endTime - startTime));
+                    LOGGER.info(tsdbQueryResponse.getFluxQueryResponse().toStringUtf8());
+                }
+                else {
+                    LOGGER.info(String.format("[Query %s] Failed", influxDBQuery.getQueryId()));
+                }
+
                 managedChannel.shutdown();
-                LOGGER.info(LOGGER.getName() + "[Outer " + influxDBQuery.getQueryId() + "] CoordinatorServer.execTSDBQuery: " + (endTime - startTime));
-                LOGGER.info(tsdbQueryResponse.getFluxQueryResponse().toStringUtf8());
 //                System.out.println(queryId + " " + (endTime - startTime));
                 final long sleepTime = interval * 1000L - (endTime - startTime);
                 Thread.sleep(sleepTime >= 0? sleepTime : 0);
             }
             catch (Exception ex) {
-                System.out.println(queryId + " Failed");
+                ex.printStackTrace();
+                LOGGER.info(String.format("[Query %s] Failed", influxDBQuery.getQueryId()));
             }
 
             if (queryCloud) {
