@@ -19,7 +19,8 @@ public final class CostModel {
                     .filter(replica -> fogPartitions.get(Utils.getUuidFromMessage(replica.getDeviceId())).isActive())
                     .collect(Collectors.toList());
             if (activeReplicas.size() == 0) {
-                throw new RuntimeException("No Available Replica for " + Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()));
+//                throw new RuntimeException("No Available Replica for " + Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()));
+                System.out.println("No Replica Available");
             }
             if (activeReplicas.stream().anyMatch(blockReplica -> Utils.getUuidFromMessage(blockReplica.getDeviceId()).equals(fogId))) {
                 execPlanList.add(new ExecPlan(Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()),
@@ -53,7 +54,7 @@ public final class CostModel {
     public static boolean canQueryLocalFog(HashSet<BlockIdReplicaMetadata> blockIdReplicaMetadataSet, Map<UUID, FogPartition> fogPartitions, UUID fogId) {
         boolean canQueryLocalFog = true;
         // Assume current fog is active (obviously)
-        if (blockIdReplicaMetadataSet.size() > 3) {
+        if (blockIdReplicaMetadataSet.size() > 7) {
             canQueryLocalFog = false;
         }
         for (BlockIdReplicaMetadata blockIdReplicaMetadata : blockIdReplicaMetadataSet) {
@@ -72,12 +73,15 @@ public final class CostModel {
         Map<UUID, Set<UUID>> blocks = new HashMap<>();
         for (BlockIdReplicaMetadata blockIdReplicaMetadata : blockIdReplicaMetadataSet) {
             UUID blockId = Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId());
-            blocks.put(blockId, new HashSet<>());
             List<BlockReplica> activeReplicas = blockIdReplicaMetadata.getReplicasList().stream()
                     .filter(replica -> fogPartitions.get(Utils.getUuidFromMessage(replica.getDeviceId())).isActive())
                     .collect(Collectors.toList());
             if (activeReplicas.size() == 0) {
-                throw new RuntimeException("No Available Replica for " + Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()));
+//                throw new RuntimeException("No Available Replica for " + Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()));
+                System.out.println("No Replica Available");
+            }
+            else {
+                blocks.put(blockId, new HashSet<>());
             }
             for (BlockReplica blockReplica : activeReplicas) {
                 UUID replicaFogId = Utils.getUuidFromMessage(blockReplica.getDeviceId());
@@ -93,7 +97,7 @@ public final class CostModel {
                 .sorted(new FrequencyComparator())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
-        List<UUID> fogsList = new ArrayList<>(sortedMap.keySet());
+        List<UUID> fogsList = new ArrayList<>(sortedMap.keySet()).stream().filter(fog -> fogPartitions.get(fog).isActive()).collect(Collectors.toList());
 
         Map<UUID, Integer> assignedBlocksCount = new HashMap<>();
 
@@ -101,7 +105,7 @@ public final class CostModel {
             assignedBlocksCount.put(fog, 0);
         }
 
-        while(mapping.size() < blockIdReplicaMetadataSet.size()) {
+        while(mapping.size() < blocks.size()) {
             for (UUID fog : fogsList) {
                 UUID selectedBlockId = null;
                 for (UUID blockId : sortedMap.get(fog)) {
@@ -168,7 +172,8 @@ public final class CostModel {
                     .filter(replica -> fogPartitions.get(Utils.getUuidFromMessage(replica.getDeviceId())).isActive())
                     .collect(Collectors.toList());
             if (activeReplicas.size() == 0) {
-                throw new RuntimeException("No Available Replica for " + Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()));
+//                throw new RuntimeException("No Available Replica for " + Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()));
+                System.out.println("No Replica Available");
             }
             for (BlockReplica blockReplica : activeReplicas) {
                 UUID replicaFogId = Utils.getUuidFromMessage(blockReplica.getDeviceId());
@@ -224,7 +229,8 @@ public final class CostModel {
                         .filter(replica -> fogPartitions.get(Utils.getUuidFromMessage(replica.getDeviceId())).isActive())
                         .collect(Collectors.toList());
                 if (activeReplicas.size() == 0) {
-                    throw new RuntimeException("No Available Replica for " + Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()));
+//                    throw new RuntimeException("No Available Replica for " + Utils.getUuidFromMessage(blockIdReplicaMetadata.getBlockId()));
+                    System.out.println("No Replica Available");
                 }
                 for (BlockReplica blockReplica : activeReplicas) {
                     UUID replicaFogId = Utils.getUuidFromMessage(blockReplica.getDeviceId());
@@ -248,7 +254,7 @@ public final class CostModel {
                 assignedBlocksCount.put(fog, 0);
             }
 
-            while(mapping.size() < blockIdReplicaMetadataSet.size()) {
+            while(mapping.size() < blocks.size()) {
                 for (UUID fog : fogsList) {
                     UUID selectedBlockId = null;
                     for (UUID blockId : sortedMap.get(fog)) {

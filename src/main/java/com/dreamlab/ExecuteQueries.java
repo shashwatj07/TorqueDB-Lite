@@ -122,15 +122,10 @@ public class ExecuteQueries {
                 final long startTime = System.currentTimeMillis();
                 TSDBQueryResponse tsdbQueryResponse = coordinatorServerBlockingStub.execTSDBQuery(TSDBQueryRequest.newBuilder().addFluxQuery(ByteString.copyFrom(buffer)).setQueryId(Utils.getMessageFromUUID(influxDBQuery.getQueryId())).build());
                 final long endTime = System.currentTimeMillis();
-                if (tsdbQueryResponse.getSuccess())
-                {
-                    LOGGER.info(String.format("[Query %s] Lines: %d", influxDBQuery.getQueryId(), tsdbQueryResponse.getFluxQueryResponse().toStringUtf8().chars().filter(c -> c == '\n').count()));
-                    LOGGER.info(LOGGER.getName() + "[Outer " + influxDBQuery.getQueryId() + "] CoordinatorServer.execTSDBQuery: " + (endTime - startTime));
-                    LOGGER.info(tsdbQueryResponse.getFluxQueryResponse().toStringUtf8());
-                }
-                else {
-                    LOGGER.info(String.format("[Query %s] Failed", influxDBQuery.getQueryId()));
-                }
+
+                LOGGER.info(String.format("[Query %s] Lines: %d", influxDBQuery.getQueryId(), tsdbQueryResponse.getFluxQueryResponse().toStringUtf8().chars().filter(c -> c == '\n').count()));
+                LOGGER.info(LOGGER.getName() + "[Outer " + influxDBQuery.getQueryId() + "] CoordinatorServer.execTSDBQuery: " + (endTime - startTime));
+                LOGGER.info(tsdbQueryResponse.getFluxQueryResponse().toStringUtf8());
 
                 managedChannel.shutdown();
 //                System.out.println(queryId + " " + (endTime - startTime));
