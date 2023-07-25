@@ -294,7 +294,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
 
         LOGGER.info(String.format("%s[Count %s] CoordinatorServer.availableBlocks: %d", LOGGER.getName(), influxDBQuery.getQueryId(), plan.size()));
 
-        if ((!spatialInactive || !temporalInactive || fogIds.stream().filter(fogId -> fogPartitions.get(fogId).isActive()).count() <= 2) &&
+        if ((!spatialInactive || !temporalInactive || fogIds.stream().filter(id -> !fogPartitions.get(id).isActive()).count() <= 2) &&
                 responseSet.size() == plan.size()) {
             LOGGER.info(String.format("%s[Count %s] CoordinatorServer.guarantee: %d", LOGGER.getName(), influxDBQuery.getQueryId(), 1));
         }
