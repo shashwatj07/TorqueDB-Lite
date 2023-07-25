@@ -301,6 +301,12 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         else {
             LOGGER.info(String.format("%s[Count %s] CoordinatorServer.guarantee: %d", LOGGER.getName(), influxDBQuery.getQueryId(), 0));
         }
+        if (plan.stream().map(ExecPlan::getFogId).collect(Collectors.toSet()).size() == 1 && plan.get(0).getFogId() == fogId) {
+            LOGGER.info(String.format("%s[Count %s] CoordinatorServer.localQuery: %d", LOGGER.getName(), influxDBQuery.getQueryId(), plan.size()));
+        }
+        else {
+            LOGGER.info(String.format("%s[Count %s] CoordinatorServer.localQuery: %d", LOGGER.getName(), influxDBQuery.getQueryId(), 0));
+        }
 
         List<UUID> fogsToQuery = plan.stream().map(ExecPlan::getFogId).distinct().collect(Collectors.toList());
         Map<UUID, TSDBQuery> fogQueries = new HashMap<>();
