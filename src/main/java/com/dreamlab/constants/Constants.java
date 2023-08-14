@@ -18,6 +18,8 @@ public final class Constants {
     public static final double MAX_LAT = 13.144;
     public static final double MIN_LON = 77.460;
     public static final double MAX_LON = 77.784;
+    // 12.834, 13.144, 77.460, 77.784 - 20 fogs
+    // 13.04, 12.91, 77.52, 77.69 - 80 fogs
     public static final String DATE_TIME_PATTERN = "uuuu-MM-dd HH-mm-ss";
     public static final String ZONE_ID = "Z";
     public static final int N_THREADS = 16;

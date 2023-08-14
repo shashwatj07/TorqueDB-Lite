@@ -433,7 +433,6 @@ public class DataService extends DataServerGrpc.DataServerImplBase {
             geoBlocks.add((BlockReplicaInfo) s2Shape);
             return true;
         }));
-        System.out.println(geoBlocks);
         FindBlocksResponse.Builder findBlockResponseBuilder = FindBlocksResponse.newBuilder();
         findBlockResponseBuilder.addAllBlockIdReplicasMetadata(
                 geoBlocks.stream().map(BlockReplicaInfo::toMessage).collect(Collectors.toSet()));

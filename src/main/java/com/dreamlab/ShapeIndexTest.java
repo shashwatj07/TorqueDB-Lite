@@ -9,6 +9,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -40,7 +41,7 @@ public class ShapeIndexTest {
 
         ManagedChannel managedChannel = ManagedChannelBuilder
                 .forAddress(ip, port)
-                .usePlaintext()
+                .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                 .build();
         DataServerGrpc.DataServerBlockingStub dataServerBlockingStub = DataServerGrpc.newBlockingStub(managedChannel);
 

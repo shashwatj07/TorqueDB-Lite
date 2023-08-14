@@ -8,6 +8,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 public class MultiBlockInsert {
 
@@ -26,7 +27,7 @@ public class MultiBlockInsert {
         for (int edgeNum = 1; edgeNum <= numEdges; edgeNum++, edgePort++) {
             ManagedChannel managedChannel = ManagedChannelBuilder
                     .forAddress(edgeIp, edgePort)
-                    .usePlaintext()
+                    .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                     .build();
             EdgeServerGrpc.EdgeServerBlockingStub edgeServerBlockingStub = EdgeServerGrpc.newBlockingStub(managedChannel);
             final int finalEdgeNum = edgeNum;

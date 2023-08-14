@@ -11,6 +11,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public final class FindBlocksClient {
     private FindBlocksClient() {
@@ -22,7 +23,7 @@ public final class FindBlocksClient {
         final String blockId = args[2];
         ManagedChannel managedChannel = ManagedChannelBuilder
                 .forAddress(fogIp, fogPort)
-                .usePlaintext()
+                .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                 .build();
         CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
         FindBlocksRequest findBlocksRequest = FindBlocksRequest

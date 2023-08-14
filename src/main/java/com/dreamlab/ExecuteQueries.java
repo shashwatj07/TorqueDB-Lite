@@ -107,7 +107,7 @@ public class ExecuteQueries {
             int fogNo = Integer.parseInt(fogInfo.getDeviceIP().substring(fogInfo.getDeviceIP().lastIndexOf(".") + 1));
             ManagedChannel managedChannel = ManagedChannelBuilder
                     .forAddress(String.format("172.17.0.%d", 101 + fogNo), fogInfo.getDevicePort())
-                    .usePlaintext()
+                    .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                     .build();
             CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
             try {
@@ -200,7 +200,7 @@ public class ExecuteQueries {
     }
 
     private static List<Polygon> generateVoronoiPolygons(List<FogInfo> fogDevices) {
-        final Polygon region = Utils.createPolygon(12.834, 13.1437, 77.4601, 77.784);
+        final Polygon region = Utils.createPolygon(Constants.MIN_LAT, Constants.MAX_LAT, Constants.MIN_LON, Constants.MAX_LON);
         List<Coordinate> coordinates = fogDevices.stream().map(Utils::getCoordinateFromFogInfo).collect(Collectors.toList());
         VoronoiDiagramBuilder diagramBuilder = new VoronoiDiagramBuilder();
         diagramBuilder.setSites(coordinates);

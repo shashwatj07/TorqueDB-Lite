@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class ExecuteQuery {
     private ExecuteQuery() {
@@ -61,7 +62,7 @@ public class ExecuteQuery {
         final FogInfo parentFogInfo = fogDetails.get(UUID.fromString(fogId));
         ManagedChannel managedChannel = ManagedChannelBuilder
                 .forAddress(parentFogInfo.getDeviceIP(), parentFogInfo.getDevicePort())
-                .usePlaintext()
+                .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                 .build();
         CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
         final long t1 = System.currentTimeMillis();

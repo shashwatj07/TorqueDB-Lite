@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 public class ParentService extends ParentServerGrpc.ParentServerImplBase {
@@ -67,7 +68,7 @@ public class ParentService extends ParentServerGrpc.ParentServerImplBase {
                 FogInfo membershipFogInfo = fogDetails.get(membershipFogId);
                 ManagedChannel managedChannel = ManagedChannelBuilder
                         .forAddress(String.valueOf(membershipFogInfo.getDeviceIP()), membershipFogInfo.getDevicePort())
-                        .usePlaintext()
+                        .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                         .build();
                 MembershipServerGrpc.MembershipServerBlockingStub membershipServerBlockingStub = MembershipServerGrpc.newBlockingStub(managedChannel);
                 membershipStubs.put(membershipFogId, membershipServerBlockingStub);

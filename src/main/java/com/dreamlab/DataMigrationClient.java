@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 public class DataMigrationClient {
@@ -44,7 +45,7 @@ public class DataMigrationClient {
         try {
             ManagedChannel managedChannel = ManagedChannelBuilder
                     .forAddress(args[0], Integer.parseInt(args[1]))
-                    .usePlaintext()
+                    .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                     .build();
             CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
             qu1.addQueryId();

@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 public class ExecuteQueriesRandom {
@@ -110,7 +111,7 @@ public class ExecuteQueriesRandom {
             int fogNo = Integer.parseInt(fogInfo.getDeviceIP().substring(fogInfo.getDeviceIP().lastIndexOf(".") + 1));
             ManagedChannel managedChannel = ManagedChannelBuilder
                     .forAddress(String.format("172.17.0.%d", 101 + fogNo), fogInfo.getDevicePort())
-                    .usePlaintext()
+                    .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                     .build();
             CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
             final long t1 = System.currentTimeMillis();

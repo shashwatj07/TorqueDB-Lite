@@ -1,6 +1,7 @@
 package com.dreamlab;
 
 import com.dreamlab.constants.Cache;
+import com.dreamlab.constants.Constants;
 import com.dreamlab.constants.Model;
 import com.dreamlab.constants.QueryPolicy;
 import com.dreamlab.edgefs.grpcServices.CoordinatorServerGrpc;
@@ -25,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -89,7 +91,7 @@ public class ExecuteQueriesLocal {
             int fogNo = Integer.parseInt(fogInfo.getDeviceIP().substring(fogInfo.getDeviceIP().lastIndexOf(".") + 1));
             ManagedChannel managedChannel = ManagedChannelBuilder
                     .forAddress(String.format("172.17.0.%d", 101 + fogNo), fogInfo.getDevicePort())
-                    .usePlaintext()
+                    .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                     .build();
             CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
             try {
@@ -146,7 +148,7 @@ public class ExecuteQueriesLocal {
     }
 
     private static List<Polygon> generateVoronoiPolygons(List<FogInfo> fogDevices) {
-        final Polygon region = Utils.createPolygon(12.834, 13.1437, 77.4601, 77.784);
+        final Polygon region = Utils.createPolygon(Constants.MIN_LAT, Constants.MAX_LAT, Constants.MIN_LON, Constants.MAX_LON);
         List<Coordinate> coordinates = fogDevices.stream().map(Utils::getCoordinateFromFogInfo).collect(Collectors.toList());
         VoronoiDiagramBuilder diagramBuilder = new VoronoiDiagramBuilder();
         diagramBuilder.setSites(coordinates);

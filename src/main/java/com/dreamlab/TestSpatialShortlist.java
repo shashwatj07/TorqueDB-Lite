@@ -1,5 +1,7 @@
 package com.dreamlab;
 
+import com.dreamlab.api.Condition;
+import com.dreamlab.constants.Constants;
 import com.dreamlab.edgefs.grpcServices.BoundingBox;
 import com.dreamlab.edgefs.grpcServices.Point;
 import com.dreamlab.types.FogInfo;
@@ -65,7 +67,7 @@ public class TestSpatialShortlist {
     }
 
     private static List<Polygon> generateVoronoiPolygons(List<FogInfo> fogDevices) {
-        final Polygon region = Utils.createPolygon(12.834, 13.1437, 77.4601, 77.784);
+        final Polygon region = Utils.createPolygon(Constants.MIN_LAT, Constants.MAX_LAT, Constants.MIN_LON, Constants.MAX_LON);
         List<Coordinate> coordinates = fogDevices.stream().map(Utils::getCoordinateFromFogInfo).collect(Collectors.toList());
         VoronoiDiagramBuilder diagramBuilder = new VoronoiDiagramBuilder();
         diagramBuilder.setSites(coordinates);

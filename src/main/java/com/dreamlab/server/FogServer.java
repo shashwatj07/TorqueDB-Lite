@@ -23,9 +23,11 @@ public class FogServer {
         for (Map.Entry<UUID, FogInfo> entry : fogDetails.entrySet()) {
             if (entry.getValue().getDeviceIP().equals(ip)) {
                 fogId = entry.getValue().getDeviceId();
+                System.out.println(ip + " " + entry.getValue().getDeviceIP() + " " + fogId);
                 break;
             }
         }
+
         startFogServer(fogId, fogDetails);
     }
     private static void startFogServer(UUID fogId, Map<UUID, FogInfo> fogDetails) {

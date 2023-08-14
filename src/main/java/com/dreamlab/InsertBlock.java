@@ -57,7 +57,7 @@ public final class InsertBlock {
         final FogInfo parentFogInfo = fogDetails.get(UUID.fromString(fogId));
         ManagedChannel managedChannel = ManagedChannelBuilder
                 .forAddress(parentFogInfo.getDeviceIP(), parentFogInfo.getDevicePort())
-                .usePlaintext()
+                .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                 .build();
         CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);
 

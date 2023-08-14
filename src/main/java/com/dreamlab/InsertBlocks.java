@@ -38,7 +38,7 @@ public final class InsertBlocks {
         Collections.sort(metadata);
         ManagedChannel managedChannel = ManagedChannelBuilder
                 .forAddress(edgeIp, edgePort)
-                .usePlaintext()
+                .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                 .build();
         EdgeServerGrpc.EdgeServerBlockingStub edgeServerBlockingStub = EdgeServerGrpc.newBlockingStub(managedChannel);
         for (int i = 0; i < blocks.size(); i++) {

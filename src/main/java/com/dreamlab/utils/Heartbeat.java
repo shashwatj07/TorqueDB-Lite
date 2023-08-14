@@ -10,6 +10,7 @@ import io.grpc.ManagedChannelBuilder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -47,7 +48,7 @@ public class Heartbeat implements Runnable {
         if(!stubs.containsKey(parentFogId)) {
             ManagedChannel managedChannel = ManagedChannelBuilder
                     .forAddress(parentFogInfo.getDeviceIP(), parentFogInfo.getDevicePort())
-                    .usePlaintext()
+                    .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                     .build();
             stubs.put(parentFogId, ParentServerGrpc.newFutureStub(managedChannel));
         }

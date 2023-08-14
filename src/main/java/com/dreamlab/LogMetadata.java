@@ -11,6 +11,7 @@ import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class LogMetadata {
 
@@ -20,7 +21,7 @@ public class LogMetadata {
         for (FogInfo fogInfo : fogDetails.values()) {
             ManagedChannel managedChannel = ManagedChannelBuilder
                     .forAddress(fogInfo.getDeviceIP(), fogInfo.getDevicePort())
-                    .usePlaintext()
+                    .usePlaintext().keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                     .build();
             DataServerGrpc.DataServerBlockingStub dataServerBlockingStub =
                     DataServerGrpc.newBlockingStub(managedChannel);

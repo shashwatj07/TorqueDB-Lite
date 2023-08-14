@@ -89,6 +89,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         Collections.sort(fogIds);
         dataStubs = new ConcurrentHashMap<>();
         dataQueryApis = new ConcurrentHashMap<>();
+        System.out.println("fogPartitionsSize " + fogPartitions.size());
         // Warmup
         for (UUID fog : fogDetails.keySet()) {
             getDataStub(fog);
@@ -580,7 +581,9 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
     }
 
     private List<Polygon> generateVoronoiPolygons(List<FogInfo> fogDevices) {
-        final Polygon region = Utils.createPolygon(12.834, 13.1437, 77.4601, 77.784);
+        // 12.834, 13.144, 77.460, 77.784 - 20 fogs
+        // 13.04, 12.91, 77.52, 77.69 - 80 fogs
+        final Polygon region = Utils.createPolygon(Constants.MIN_LAT, Constants.MAX_LAT, Constants.MIN_LON, Constants.MAX_LON);
         List<Coordinate> coordinates = fogDevices.stream().map(Utils::getCoordinateFromFogInfo).collect(Collectors.toList());
         VoronoiDiagramBuilder diagramBuilder = new VoronoiDiagramBuilder();
         diagramBuilder.setSites(coordinates);
