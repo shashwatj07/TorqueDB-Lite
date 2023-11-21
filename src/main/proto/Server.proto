@@ -174,14 +174,14 @@ message PutBlockAndMetadataRequest {
 
 message HeartbeatRequest {
   UUIDMessage edgeId = 1;
-  int32 ttlSecs = 2;
+  double ttlSecs = 2;
 }
 
 message SetParentFogRequest {
   UUIDMessage edgeId = 1;
   UUIDMessage fogId = 2;
   google.protobuf.Timestamp heartbeatTimestamp = 3;
-  int32 ttlSecs = 4;
+  double ttlSecs = 4;
 }
 
 message GetParentFogRequest {
@@ -194,5 +194,5 @@ message GetParentFogResponse {
   optional string ip = 2;
   optional int32 port = 3;
   optional google.protobuf.Timestamp heartbeatTimestamp = 4;
-  optional int32 ttlSecs = 5;
+  optional double ttlSecs = 5;
 }

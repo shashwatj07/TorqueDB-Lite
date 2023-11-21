@@ -31,7 +31,7 @@ public final class InsertBlocksCloud {
         final String token = args[3];
         final String blocksDirectory = args[4];
         final File blocksDir = new File(blocksDirectory);
-        final int interval = Integer.parseInt(args[5]);
+        final double interval = Double.parseDouble(args[5]);
         final List<String> blocks = Arrays.stream(blocksDir.listFiles()).map(File::getAbsolutePath).collect(Collectors.toList());
         Collections.sort(blocks);
         OkHttpClient.Builder okHttpClient = new OkHttpClient.Builder()
@@ -59,7 +59,7 @@ public final class InsertBlocksCloud {
                 final long end = System.currentTimeMillis();
                 LOGGER.info(String.format("[Client] [Outer %s] EdgeServer.putBlockAndMetadata: %d", blockId, (end - start)));
                 LOGGER.info("Success: " + blockId);
-                final long sleepTime = interval * 1000L - (end - start);
+                final long sleepTime = (long) (interval * 1000L - (end - start));
                 Thread.sleep(sleepTime >= 0? sleepTime : 0);
             }
             catch (Exception ex) {

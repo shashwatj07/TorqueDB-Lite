@@ -54,7 +54,7 @@ public final class CostModel {
     public static boolean canQueryLocalFog(HashSet<BlockIdReplicaMetadata> blockIdReplicaMetadataSet, Map<UUID, FogPartition> fogPartitions, UUID fogId) {
         boolean canQueryLocalFog = true;
         // Assume current fog is active (obviously)
-        if (blockIdReplicaMetadataSet.size() > 7) {
+        if (blockIdReplicaMetadataSet.size() > 5) {
             canQueryLocalFog = false;
         }
         for (BlockIdReplicaMetadata blockIdReplicaMetadata : blockIdReplicaMetadataSet) {

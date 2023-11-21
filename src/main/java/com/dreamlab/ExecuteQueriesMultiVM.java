@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-public class ExecuteQueries {
+public class ExecuteQueriesMultiVM {
 
     static final Logger LOGGER = Logger.getLogger("[Client] ");
 
@@ -46,8 +46,6 @@ public class ExecuteQueries {
         final int count = Integer.parseInt(args[0]);
         final String fogsConfigFilePath = args[1];
         Map<UUID, FogInfo> fogDetails = Utils.readFogDetails(fogsConfigFilePath);
-        List<UUID> fogIds = new ArrayList<>(fogDetails.keySet());
-        Collections.sort(fogIds);
         Map<UUID, FogPartition> fogPartitions = generateFogPartitions(new ArrayList<>(fogDetails.values()));
         String workload = args[2];
         int interval = Integer.parseInt(args[3]);
@@ -56,7 +54,16 @@ public class ExecuteQueries {
         int index = Integer.parseInt(args[6]);
         String costModel = args[7];
         String coordinator = args[8];
-        boolean queryCloud = Boolean.parseBoolean(args[9]);
+        int vm = Integer.parseInt(args[9]);
+        boolean queryCloud = Boolean.parseBoolean(args[10]);
+        List<UUID> fogIds = new ArrayList<>();
+        for (UUID fogId : fogDetails.keySet()) {
+            int fogNo = Integer.parseInt(fogDetails.get(fogId).getDeviceIP().substring(fogDetails.get(fogId).getDeviceIP().lastIndexOf(".") + 1));
+            if (fogNo > (vm-1)*20 && fogNo <= vm*20) {
+                fogIds.add(fogId);
+            }
+        }
+        Collections.sort(fogIds);
 
         JSONObject jsonObject = null;
         try {
@@ -106,7 +113,7 @@ public class ExecuteQueries {
             System.out.println("Executing Query on " + fogInfo.getDeviceId());
             int fogNo = Integer.parseInt(fogInfo.getDeviceIP().substring(fogInfo.getDeviceIP().lastIndexOf(".") + 1));
             ManagedChannel managedChannel = ManagedChannelBuilder
-                    .forAddress(String.format("172.17.0.%d", 101 + fogNo), fogInfo.getDevicePort())
+                    .forAddress(String.format("172.17.0.%d", 101 + fogNo - ((vm - 1) * 20)), fogInfo.getDevicePort())
                     .usePlaintext()//.keepAliveTime(Long.MAX_VALUE, TimeUnit.DAYS)
                     .build();
             CoordinatorServerGrpc.CoordinatorServerBlockingStub coordinatorServerBlockingStub = CoordinatorServerGrpc.newBlockingStub(managedChannel);

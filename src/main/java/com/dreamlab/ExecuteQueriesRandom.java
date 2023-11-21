@@ -71,7 +71,7 @@ public class ExecuteQueriesRandom {
             System.out.println(metadataFiles.get(blockIndex).toPath());
             JSONObject jsonObject = new JSONObject(Files.readString(metadataFiles.get(blockIndex).toPath()));
             System.out.println(Files.readString(metadataFiles.get(blockIndex).toPath()));
-            final int fogIndex = Constants.RANDOM.nextInt(fogIds.size());
+            final int fogIndex = Constants.RANDOM.nextInt(20); // TODO: Hardcoded
             final FogInfo fogInfo = fogDetails.get(fogIds.get(fogIndex));
             System.out.println("Executing Query on " + fogInfo.getDeviceId());
             InfluxDBQuery influxDBQuery = new InfluxDBQuery();

@@ -26,13 +26,13 @@ public class Heartbeat implements Runnable {
 
     private UUID edgeId;
 
-    private final int ttlSecs;
+    private final double ttlSecs;
 
     private final Map<UUID, FogInfo> fogDetails;
 
     private final Logger LOGGER;
 
-    public Heartbeat(EdgeService edgeService, UUID edgeId, int ttlSecs, Map<UUID, FogInfo> fogDetails) {
+    public Heartbeat(EdgeService edgeService, UUID edgeId, double ttlSecs, Map<UUID, FogInfo> fogDetails) {
         LOGGER = Logger.getLogger(String.format("[Edge: %s] ", edgeId.toString()));
         this.edgeService = edgeService;
         this.ttlSecs = ttlSecs;
@@ -65,7 +65,7 @@ public class Heartbeat implements Runnable {
 //                LOGGER.info(String.format("%s[Outer] ParentServer.sendHeartbeat: %d", LOGGER.getName(), (end - start)));
                 LOGGER.info(String.format("%sCurrent Location (%f, %f)", LOGGER.getName(), edgeService.getLatitude(), edgeService.getLongitude()));
                 LOGGER.info(LOGGER.getName() + "Heartbeat Sent To: " + parentFogId);
-                final long sleepTime = 1000L * ttlSecs - (System.currentTimeMillis() - start);
+                final long sleepTime = (long) (1000L * ttlSecs - (System.currentTimeMillis() - start));
                 Thread.sleep(sleepTime > 0 ? sleepTime : 0);
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, LOGGER.getName() + e.getMessage(), e);

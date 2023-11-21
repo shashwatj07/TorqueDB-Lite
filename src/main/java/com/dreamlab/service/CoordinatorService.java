@@ -116,7 +116,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         final long t1 = System.currentTimeMillis();
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(Constants.N_THREADS);
-            fogIds.forEach(fogId -> futures.add(executorService.submit(() -> getDataStub(fogId).findBlocksLocal(request))));
+            fogIds.forEach(fogId -> futures.add(executorService.submit(() -> findBlocksLocalOnDataStoreFog(fogId, queryId, request))));
             executorService.shutdown();
             executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
@@ -247,14 +247,15 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
                 LOGGER.info(String.format("%s[Query %s] CoordinatorServer.shortlistChoice: broadcast", LOGGER.getName(), influxDBQuery.getQueryId()));
             }
         }
+        UUID queryId = influxDBQuery.getQueryId();
 
-        LOGGER.info(String.format("%s[Query %s] CoordinatorServer.finalShortlist: %s", LOGGER.getName(), influxDBQuery.getQueryId(), fogIds));
+        LOGGER.info(String.format("%s[Query %s] CoordinatorServer.finalShortlist: %s", LOGGER.getName(), queryId, fogIds));
 
         List<Future<FindBlocksResponse>> futures = new ArrayList<>();
         final long t1 = System.currentTimeMillis();
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(Constants.N_THREADS);
-            fogIds.forEach(fogId -> futures.add(executorService.submit(() -> getDataStub(fogId).findBlocksLocal(findBlocksRequest))));
+            fogIds.forEach(fogId -> futures.add(executorService.submit(() -> findBlocksLocalOnDataStoreFog(fogId, queryId, findBlocksRequest))));
             executorService.shutdown();
             executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
@@ -262,7 +263,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
             throw new RuntimeException(e);
         }
         final long t2 = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Outer %s] CoordinatorServer.forEach.findBlocksLocal: %d", LOGGER.getName(), influxDBQuery.getQueryId(), (t2 - t1)));
+        LOGGER.info(String.format("%s[Outer %s] CoordinatorServer.forEach.findBlocksLocal: %d", LOGGER.getName(), queryId, (t2 - t1)));
 
         HashSet<BlockIdReplicaMetadata> responseSet = new HashSet<>();
         for (Future<FindBlocksResponse> future : futures) {
@@ -426,7 +427,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         final long t1 = System.currentTimeMillis();
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(3);
-            blockReplicaFogIds.forEach(replicaFogId -> executorService.submit(() -> sendBlockToDataStoreFog(replicaFogId, storeBlockRequest)));
+            blockReplicaFogIds.forEach(replicaFogId -> executorService.submit(() -> sendBlockToDataStoreFog(replicaFogId, blockId, storeBlockRequest)));
             executorService.shutdown();
             executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
@@ -513,9 +514,7 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         final long t1 = System.currentTimeMillis();
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(Constants.N_THREADS);
-            metadataReplicaFogIds.forEach(replicaFogId -> {
-                executorService.submit(() -> sendMetadataToDataStoreFog(replicaFogId, indexMetadataRequest));
-            });
+            metadataReplicaFogIds.forEach(replicaFogId -> executorService.submit(() -> sendMetadataToDataStoreFog(replicaFogId, blockId, indexMetadataRequest)));
             executorService.shutdown();
             executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
@@ -535,6 +534,14 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         responseObserver.onCompleted();
     }
 
+    private FindBlocksResponse findBlocksLocalOnDataStoreFog(UUID dataStoreFogId, UUID queryId, FindBlocksRequest findBlocksRequest) {
+        final long start = System.currentTimeMillis();
+        FindBlocksResponse findBlocksResponse = getDataStub(dataStoreFogId).findBlocksLocal(findBlocksRequest);
+        final long end = System.currentTimeMillis();
+        LOGGER.info(String.format("%s[Outer %s] DataServer.findBlocksLocal(%s): %d", LOGGER.getName(), queryId, dataStoreFogId, (end - start)));
+        return findBlocksResponse;
+    }
+
     private String execTSDBQueryOnDataStoreFog(UUID dataStoreFogId, UUID queryId, String query) {
         LOGGER.info(String.format("%s[Query %s] Flux Query: %s", LOGGER.getName(), queryId, query));
         final long start = System.currentTimeMillis();
@@ -544,22 +551,22 @@ public class CoordinatorService extends CoordinatorServerGrpc.CoordinatorServerI
         return response;
     }
 
-    private void sendMetadataToDataStoreFog(UUID dataStoreFogId, IndexMetadataRequest indexMetadataRequest) {
+    private void sendMetadataToDataStoreFog(UUID dataStoreFogId, UUID blockId, IndexMetadataRequest indexMetadataRequest) {
         final long start = System.currentTimeMillis();
         Response response = getDataStub(dataStoreFogId)
                 .withDeadlineAfter(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
                 .indexMetadataLocal(indexMetadataRequest);
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Outer] DataServer.indexMetadataLocal: %d", LOGGER.getName(), (end - start)));
+        LOGGER.info(String.format("%s[Outer %s] DataServer.indexMetadataLocal(%s): %d", LOGGER.getName(), blockId, dataStoreFogId, (end - start)));
     }
 
-    private void sendBlockToDataStoreFog(UUID dataStoreFogId, StoreBlockRequest storeBlockRequest) {
+    private void sendBlockToDataStoreFog(UUID dataStoreFogId, UUID blockId, StoreBlockRequest storeBlockRequest) {
         final long start = System.currentTimeMillis();
         Response response = getDataStub(dataStoreFogId)
                 .withDeadlineAfter(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
                 .storeBlockLocal(storeBlockRequest);
         final long end = System.currentTimeMillis();
-        LOGGER.info(String.format("%s[Outer] DataServer.storeBlockLocal: %d", LOGGER.getName(), (end - start)));
+        LOGGER.info(String.format("%s[Outer %s] DataServer.storeBlockLocal(%s): %d", LOGGER.getName(), blockId, dataStoreFogId, (end - start)));
     }
 
     private Map<UUID, FogPartition> generateFogPartitions(List<FogInfo> fogDevices) {

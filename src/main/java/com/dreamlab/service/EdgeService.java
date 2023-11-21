@@ -34,7 +34,7 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
 
     private final int port;
 
-    private final int heartbeatTtlSecs;
+    private final double heartbeatTtlSecs;
 
     private final Thread heartbeatThread;
 
@@ -44,7 +44,7 @@ public class EdgeService extends EdgeServerGrpc.EdgeServerImplBase {
 
     private final Logger LOGGER;
 
-    public EdgeService(UUID id, String ip, int port, int heartbeatTtlSecs, String fogsConfigFilePath, String trajectoryFilePath) {
+    public EdgeService(UUID id, String ip, int port, double heartbeatTtlSecs, String fogsConfigFilePath, String trajectoryFilePath) {
         this.id  = id;
         this.ip = ip;
         this.port = port;

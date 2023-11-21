@@ -9,9 +9,9 @@ public class MembershipInfo implements Serializable {
     private static final long serialVersionUID = -4274519773685314392L;
     private final UUID parentFogId;
     private final Instant lastHeartbeat;
-    private final int ttlSecs;
+    private final double ttlSecs;
 
-    public MembershipInfo(UUID parentFogId, Instant lastHeartbeat, int ttlSecs) {
+    public MembershipInfo(UUID parentFogId, Instant lastHeartbeat, double ttlSecs) {
         this.parentFogId = parentFogId;
         this.lastHeartbeat = lastHeartbeat;
         this.ttlSecs = ttlSecs;
@@ -25,7 +25,7 @@ public class MembershipInfo implements Serializable {
         return lastHeartbeat;
     }
 
-    public int getTtlSecs() {
+    public double getTtlSecs() {
         return ttlSecs;
     }
 }

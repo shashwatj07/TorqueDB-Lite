@@ -18,7 +18,7 @@ public class LocationHandler implements Runnable {
 
     private UUID edgeId;
 
-    private final int ttlSecs;
+    private final double ttlSecs;
 
     private List<String> trajectoryList = new ArrayList<>();
 
@@ -26,7 +26,7 @@ public class LocationHandler implements Runnable {
 
     private final Logger LOGGER;
 
-    public LocationHandler(EdgeService edgeService, UUID edgeId, int ttlSecs, String trajectoryFilePath) {
+    public LocationHandler(EdgeService edgeService, UUID edgeId, double ttlSecs, String trajectoryFilePath) {
         LOGGER = Logger.getLogger(String.format("[Edge: %s] ", edgeId.toString()));
         this.edgeService = edgeService;
         this.ttlSecs = ttlSecs;
@@ -57,7 +57,7 @@ public class LocationHandler implements Runnable {
         while (true) {
             try {
                 updateLocation(59);
-                Thread.sleep(1000L * ttlSecs);
+                Thread.sleep((long) (1000L * ttlSecs));
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, LOGGER.getName() + e.getMessage(), e);
             }
